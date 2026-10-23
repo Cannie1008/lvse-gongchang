@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>绿色工厂自评打分器（GB/T 36132—2025）</title>
+<style>
+:root{--paper:#F2F4F1;--surface:#FFFFFF;--ink:#1E2A24;--muted:#5E6E65;--line:#D3DDD6;--moss:#2F6B4F;--tint:#DCE7DF;--amber:#94661A;--amber-bar:#C08A2E;--amber-tint:#F6EBD6;--rust:#A8432F;--rust-tint:#F4DFD9;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--paper:#111814;--surface:#18211C;--ink:#E3EAE5;--muted:#98A89E;--line:#2B3931;--moss:#86C3A0;--tint:#203128;--amber:#D8A657;--amber-bar:#D8A657;--amber-tint:#3A301E;--rust:#E58B74;--rust-tint:#3C2520;color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);color:var(--ink)}
+body{font:15px/1.6 "PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC","Source Han Sans SC",system-ui,sans-serif;-webkit-text-size-adjust:100%;padding-bottom:env(safe-area-inset-bottom,0px)}
+.num,.big,input{font-variant-numeric:tabular-nums}
+header.top{max-width:1240px;margin:0 auto;padding:calc(28px + env(safe-area-inset-top,0px)) 24px 8px}
+h1{font-size:26px;line-height:1.25;margin:0 0 6px;font-weight:700}
+.lede{color:var(--muted);margin:0;max-width:64ch}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+button{font:inherit;font-size:14px;padding:7px 14px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+button.primary{background:var(--moss);border-color:var(--moss);color:var(--paper)}
+:focus-visible{outline:2px solid var(--moss);outline-offset:2px}
+#msg{min-height:1.4em;margin:8px 0 0;font-size:13px;color:var(--muted)}
+main{max-width:1240px;margin:0 auto;padding:8px 24px 40px;display:grid;grid-template-columns:minmax(0,1fr) 430px;gap:36px;align-items:start}
+main>form,main>aside{min-width:0}
+form section{padding:22px 0 14px;border-top:1px solid var(--line)}
+form h2{font-size:17px;margin:0 0 2px}
+.secnote{color:var(--muted);font-size:13px;margin:0 0 10px;max-width:70ch}
+.f{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:12px;align-items:center;padding:5px 0}
+.f label{font-size:14px}
+.hint{display:block;color:var(--muted);font-size:12px;line-height:1.45}
+.inwrap{display:flex;align-items:center;gap:6px}
+.f input,.f select{width:100%;min-width:0;font:inherit;font-size:14px;padding:6px 8px;border:1px solid var(--line);border-radius:5px;background:var(--surface);color:var(--ink)}
+.f input{text-align:right}
+.f input.t{text-align:left}
+.unit{color:var(--muted);font-size:12px;white-space:nowrap;min-width:44px}
+.readout{margin-top:10px;padding:10px 12px;background:var(--tint);border-radius:6px;font-size:13px}
+.checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 18px;margin:6px 0 12px}
+.checks label{font-size:14px;display:flex;gap:8px;align-items:center;padding:3px 0}
+.qual{padding:10px 0;border-top:1px dashed var(--line)}
+.qual p{margin:0;font-size:14px;font-weight:600}
+.opts{display:grid;gap:3px;margin-top:6px}
+.opts label{display:flex;gap:8px;align-items:flex-start;font-size:13px}
+.opts input{margin-top:4px}
+.bmwrap{overflow-x:auto}
+table.bm{width:100%;border-collapse:collapse;font-size:13px;min-width:560px}
+table.bm th,table.bm td{padding:6px 4px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+table.bm th{font-weight:600;color:var(--muted)}
+table.bm input{width:100%;font:inherit;font-size:13px;padding:5px 6px;border:1px solid var(--line);border-radius:5px;background:var(--surface);color:var(--ink)}
+table.bm td.act{white-space:nowrap;color:var(--muted)}
+aside.ledger{position:sticky;top:16px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px 20px 16px;max-height:calc(100vh - 32px);overflow:auto}
+.who{margin:0;color:var(--muted);font-size:13px}
+.scoreline{display:flex;align-items:baseline;gap:10px;margin-top:2px}
+.big{font-size:58px;line-height:1.05;font-weight:700;letter-spacing:-.02em}
+.sub{margin:2px 0 0;color:var(--muted)}
+.ruler{margin:26px 0 4px}
+.track{position:relative;height:20px;border:1px solid var(--line);border-radius:3px;background:repeating-linear-gradient(90deg,transparent 0 calc(10% - 1px),var(--line) calc(10% - 1px) 10%)}
+.seg{position:absolute;top:0;bottom:0;left:0}
+.seg.c{background:var(--moss)}
+.seg.p{background:repeating-linear-gradient(135deg,var(--amber-bar) 0 4px,transparent 4px 8px)}
+.tick{position:absolute;top:-7px;bottom:-7px;width:2px;margin-left:-1px;background:var(--ink)}
+.tick span{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);font-size:12px;white-space:nowrap;padding-bottom:2px}
+.scale{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:3px}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:6px}
+.legend i{display:inline-block;width:12px;height:10px;margin-right:4px;vertical-align:-1px}
+.legend .lc{background:var(--moss)}
+.legend .lp{background:repeating-linear-gradient(135deg,var(--amber-bar) 0 3px,transparent 3px 6px);border:1px solid var(--amber-bar)}
+.verdict{margin:14px 0 0;font-weight:600;padding:10px 12px;border-radius:6px;font-size:15px}
+.tone-ok{background:var(--tint);color:var(--moss)}
+.tone-mid{background:var(--amber-tint);color:var(--amber)}
+.tone-bad{background:var(--rust-tint);color:var(--rust)}
+.alert{margin-top:10px;padding:10px 12px;border-radius:6px;font-size:13px}
+.alert ul{margin:4px 0 0;padding-left:18px}
+.block{border-top:1px solid var(--line);margin-top:16px;padding-top:12px}
+.block h3{font-size:14px;margin:0 0 8px}
+.block p{font-size:13px;margin:6px 0 0}
+ol.path,ul.gaps{margin:0;padding-left:20px;font-size:13px}
+ol.path li,ul.gaps li{margin:3px 0}
+.dim{color:var(--muted)}
+.cat{display:grid;grid-template-columns:78px minmax(0,1fr) 74px;gap:10px;align-items:center;font-size:13px;margin:5px 0}
+.cat .v{text-align:right}
+.bar{height:8px;background:var(--tint);border-radius:4px;position:relative;overflow:hidden}
+.bar i{position:absolute;top:0;bottom:0;left:0;background:var(--moss)}
+.bar b{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(135deg,var(--amber-bar) 0 3px,transparent 3px 6px)}
+ul.inds{list-style:none;margin:0;padding:0;font-size:13px}
+ul.inds li{display:grid;grid-template-columns:24px minmax(0,1fr) auto 66px;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);align-items:baseline}
+ul.inds .n{color:var(--muted)}
+ul.inds .a{display:block;color:var(--muted);font-size:12px}
+ul.inds .s{text-align:right}
+.chip{font-size:11px;padding:1px 7px;border-radius:10px;white-space:nowrap;justify-self:end}
+.chip.full{background:var(--tint);color:var(--moss)}
+.chip.partial{border:1px solid var(--line);color:var(--ink)}
+.chip.zero{background:var(--rust-tint);color:var(--rust)}
+.chip.gap{background:var(--amber-tint);color:var(--amber)}
+details summary{cursor:pointer;font-size:14px;font-weight:600}
+details ul{font-size:13px;padding-left:18px}
+footer{max-width:1240px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:12px}
+footer p{max-width:90ch}
+.mini{display:none}
+@media (max-width:980px){
+ main{grid-template-columns:1fr;gap:12px}
+ aside.ledger{position:static;max-height:none}
+ .mini{display:flex;position:sticky;top:0;z-index:5;gap:16px;align-items:baseline;flex-wrap:wrap;padding:calc(8px + env(safe-area-inset-top,0px)) 16px 8px;background:var(--surface);border-bottom:1px solid var(--line);font-size:13px}
+ .mini b{font-size:20px}
+ header.top{padding-top:18px}
+}
+@media (max-width:600px){
+ .f{grid-template-columns:1fr;gap:4px}
+ .checks{grid-template-columns:1fr}
+ header.top,main,footer{padding-left:16px;padding-right:16px}
+ .big{font-size:50px}
+}
+@media print{.mini,form,.actions,#msg{display:none!important} main{display:block} aside.ledger{position:static;max-height:none;border:0;padding:0}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="mini" aria-hidden="true"><span>确定分 <b id="m-c">—</b></span><span>上限 <span id="m-u">—</span></span><span id="m-v"></span></div>
+<header class="top">
+  <h1>绿色工厂自评打分器</h1>
+  <p class="lede">按 GB/T 36132—2025 和工信部年度评价要求的14项指标打分，看确定分、待定分、离分数线差多少，以及先做哪几件事最快过线。数据只保存在这台电脑的浏览器里，不联网。</p>
+  <div class="actions">
+    <button type="button" class="primary" id="b-demo">载入示例</button>
+    <button type="button" id="b-clear">清空</button>
+    <button type="button" id="b-export">导出数据（JSON）</button>
+    <button type="button" id="b-import">导入数据</button>
+    <button type="button" id="b-print">打印结果</button>
+    <input type="file" id="file" accept=".json,application/json" hidden>
+  </div>
+  <p id="msg" role="status"></p>
+</header>
+<main>
+  <form id="form" autocomplete="off" novalidate></form>
+  <aside class="ledger" id="ledger" aria-live="polite"></aside>
+</main>
+<footer>
+  <p>按 GB/T 36132—2025《绿色工厂评价通则》和工信部年度《绿色工厂评价要求》推算；定性项（指标9、12、13）按满分、半分、零分估计；重点行业以管理平台上的行业评价要求为准。结果不是官方评审结论。政策核对至 2026-10-23。导出的 JSON 可以交给“绿色工厂研判”技能生成 Word 研判报告。</p>
+</footer>
+<script>/* 绿色工厂研判引擎（JS 版，与 scripts/gf_engine.py 对应） */
+(function (root) {
+  "use strict";
+  var MODEL = [
+    { id: "1", cat: "能源低碳化", name: "能源消耗强度", kind: "rev", weight: 8, lead_rule: "行业先进水平或能耗限额1级", base_rule: "行业平均水平或能耗限额2级" },
+    { id: "2", cat: "能源低碳化", name: "碳排放强度", kind: "rev", weight: 8, lead_rule: "行业先进水平", base_rule: "行业平均水平" },
+    { id: "3", cat: "能源低碳化", name: "可再生能源利用率", kind: "pos", weight: 8, lead_rule: "行业先进水平", base_rule: "行业平均水平" },
+    { id: "4", cat: "能源低碳化", name: "能碳管理系统平台功能符合数量", kind: "pos", weight: 6, fixed: [8, 0] },
+    { id: "5", cat: "资源高效化", name: "原材料消耗强度", kind: "rev", weight: 8, lead_rule: "行业先进水平", base_rule: "行业平均水平" },
+    { id: "6", cat: "资源高效化", name: "取水强度", kind: "rev", weight: 8, lead_rule: "行业先进水平或用水定额先进值", base_rule: "行业平均水平或用水定额通用值" },
+    { id: "7", cat: "资源高效化", name: "工业用水重复利用率", kind: "pos", weight: 8, lead_rule: "行业先进水平", base_rule: "行业平均水平" },
+    { id: "8", cat: "资源高效化", name: "一般工业固体废物综合利用率", kind: "pos", weight: 6, lead_rule: "行业先进水平", base_rule: "行业平均水平" },
+    { id: "9", cat: "生产洁净化", name: "生产工艺和设备先进性", kind: "qual", weight: 6 },
+    { id: "10", cat: "生产洁净化", name: "绿色低碳改造升级项目投资额占比", kind: "pos", weight: 4, lead_rule: "行业先进水平", base_rule: "行业平均水平" },
+    { id: "11", cat: "生产洁净化", name: "主要污染物产生或排放强度", kind: "rev", weight: 6, lead_rule: "行业先进水平", base_rule: "行业平均水平" },
+    { id: "12", cat: "产品绿色化", name: "绿色设计", kind: "qual", weight: 8 },
+    { id: "13", cat: "产品绿色化", name: "产品碳足迹", kind: "qual", weight: 8 },
+    { id: "14", cat: "用地集约化", name: "土地产出率", kind: "pos", weight: 8, lead_rule: "行业或地方先进水平", base_rule: "行业平均水平" }
+  ];
+  var CATS = ["能源低碳化", "资源高效化", "生产洁净化", "产品绿色化", "用地集约化"];
+  var QUAL = { A: 1, B: 0.5, C: 0 };
+  var QUAL_TEXT = {
+    "9": { A: "主要工序的工艺设备能逐项对上国家推荐目录或行业规范条件，有合同/铭牌/验收证明，且无淘汰类设备", B: "部分能对上，或证明材料不全", C: "拿不出对应证明" },
+    "12": { A: "已按 GB/T 24256 形成产品绿色设计及验证报告，并有环境绩效改善的证据", B: "有设计改进记录，但没有成体系的报告或验证", C: "未开展" },
+    "13": { A: "主要产品已按 GB/T 24067 等完成碳足迹量化并出具报告", B: "只做了部分主要产品，或方法不符合 GB/T 24067", C: "未开展" }
+  };
+  var ECMS_FUNCS = ["能耗查询", "能源消费量和强度计算", "能源消费分析与用能策略推荐", "能效对标", "能流分析", "能效平衡与优化", "用能与碳排放预算管理", "碳排放", "碳足迹核算", "供应链碳管理", "碳核查支撑", "碳资产管理"];
+  var KGCE = { elec_kwh: 0.1229, ng_m3: 1.2143, diesel_kg: 1.4571, gasoline_kg: 1.4714, lpg_kg: 1.7143, fuel_oil_kg: 1.4286, coal_kg: 0.7143, coke_kg: 0.9714, heat_gj: 34.12 };
+  var FUEL_EF = { ng_m3: [389.31, 15.32, 0.99, 1e4], diesel_t: [42.652, 20.20, 0.98, 1], gasoline_t: [43.070, 18.90, 0.98, 1], lpg_t: [50.179, 17.20, 0.98, 1], fuel_oil_t: [41.816, 21.10, 0.98, 1], coal_t: [20.908, 26.37, 0.94, 1], coke_t: [28.435, 29.50, 0.93, 1] };
+  var GRID = { "全国": 0.5306, "华北": 0.6361, "东北": 0.5122, "华东": 0.5500, "华中": 0.5271, "西北": 0.5543, "南方": 0.4042, "西南": 0.2472, "北京": 0.5554, "天津": 0.6796, "河北": 0.6516, "山西": 0.6634, "内蒙古": 0.6479, "辽宁": 0.4878, "吉林": 0.4671, "黑龙江": 0.5229, "上海": 0.5737, "江苏": 0.5827, "浙江": 0.4974, "安徽": 0.6553, "福建": 0.4211, "江西": 0.5836, "山东": 0.6191, "河南": 0.5897, "湖北": 0.4044, "湖南": 0.4976, "广东": 0.4419, "广西": 0.4476, "海南": 0.3648, "重庆": 0.5581, "四川": 0.1564, "贵州": 0.5683, "云南": 0.1333, "陕西": 0.6335, "甘肃": 0.4471, "青海": 0.1796, "宁夏": 0.6187, "新疆": 0.6021 };
+  var RESIDUAL = 0.6096;
+  var GATES = [
+    ["g1", "近三年未正常经营生产（注销、连续停产12个月以上、列入经营异常名录未移出等）", "veto"],
+    ["g2", "近三年发生较大及以上安全（含网络、数据、生产安全）、质量、环境污染事故", "veto"],
+    ["g3", "近三年被动态调整出绿色制造名单", "veto"],
+    ["g4", "近三年从事《反垄断法》规定的垄断行为", "veto"],
+    ["g5", "近三年在国务院及有关部门督查中被发现存在严重问题", "veto"],
+    ["g6", "被列入工业节能监察整改名单且未按要求完成整改", "veto"],
+    ["g7", "近三年受到有关行政主管部门比较重大以上行政处罚", "veto"],
+    ["g8", "被列为失信被执行人", "veto"],
+    ["g9", "近三年有其他安全、质量、环保违法违规记录（含一般行政处罚）", "review"]
+  ];
+  var BASIC = [["b1", "绿色制造管理职责、中长期规划和年度量化目标"], ["b2", "质量管理体系"], ["b3", "环境管理体系"], ["b4", "能源管理体系"], ["b5", "职业健康安全管理体系"]];
+  var TH = { "市级": { key: 60, nonkey: 75 }, "省级": { key: 60, nonkey: 75 } };
+  var PLAY = {
+    "1": ["year", "中–慢", "节能改造"], "2": ["year", "中", "节能降碳或绿电（按碳核算口径）"], "3": ["year", "快–中", "绿证、绿电交易、屋顶光伏"],
+    "4": ["status", "快–中", "补齐能碳管理系统功能并运行"], "5": ["year", "慢", "工艺优化、提高材料利用率"], "6": ["year", "中", "节水改造"],
+    "7": ["year", "中", "循环水、中水回用"], "8": ["year", "快–中", "固废综合利用协议、分类收集"], "9": ["status", "快（整理）/慢（更新设备）", "对照推荐目录整理证明"],
+    "10": ["year", "跨年", "只计真实实施的改造项目"], "11": ["year", "中–慢", "治理设施提标、源头替代"], "12": ["status", "中（2–4个月）", "按 GB/T 24256 做绿色设计及验证报告"],
+    "13": ["status", "快–中（1–3个月）", "按 GB/T 24067 做主要产品碳足迹"], "14": ["year", "慢", "提高单位用地产值或产能"]
+  };
+
+  function num(v) {
+    if (v === null || v === undefined || typeof v === "boolean") return null;
+    if (typeof v === "number") return isFinite(v) ? v : null;
+    var s = String(v).trim();
+    if (s === "" || ["-", "—", "无", "未知", "不清楚", "N/A", "n/a"].indexOf(s) >= 0) return null;
+    s = s.replace(/[０-９．－＋]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); });
+    s = s.replace(/[,，\s]/g, "");
+    if (s.charAt(s.length - 1) === "%") s = s.slice(0, -1);
+    if (!/^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(s)) return null;
+    return parseFloat(s);
+  }
+  function z(v) { var n = num(v); return n === null ? 0 : n; }
+  function o(x) { return x && typeof x === "object" ? x : {}; }
+  function round(v, nd) { if (v === null || v === undefined) return null; var p = Math.pow(10, nd); return Math.round(v * p + (v >= 0 ? 1e-9 : -1e-9)) / p; }
+
+  function computeEnergy(data, W) {
+    var e = o(data.energy), meta = o(data.meta);
+    var grid = z(e.grid_kwh), pv = z(e.pv_self_kwh), direct = z(e.direct_green_kwh), trade = z(e.green_trade_kwh), gec = z(e.gec_mwh) * 1000;
+    var ngc = num(e.ng_coef);
+    if (ngc === null) { ngc = KGCE.ng_m3; if (z(e.natural_gas_m3)) W.push("天然气按 1.2143 kgce/m³ 折标，有实测热值时以其为准。"); }
+    var t = {
+      "电力": (grid + pv + direct) * KGCE.elec_kwh / 1000, "天然气": z(e.natural_gas_m3) * ngc / 1000,
+      "柴油": z(e.diesel_t) * KGCE.diesel_kg, "汽油": z(e.gasoline_t) * KGCE.gasoline_kg, "液化石油气": z(e.lpg_t) * KGCE.lpg_kg,
+      "燃料油": z(e.fuel_oil_t) * KGCE.fuel_oil_kg, "原煤": z(e.coal_t) * KGCE.coal_kg, "焦炭": z(e.coke_t) * KGCE.coke_kg,
+      "外购热力": z(e.heat_gj) * KGCE.heat_gj / 1000, "其他能源": z(e.other_tce), "其他可再生能源": z(e.other_renewable_tce)
+    };
+    var gross = 0, k; for (k in t) gross += t[k];
+    var total = gross - z(e.feedstock_tce) - z(e.exported_tce);
+    var has = gross > 0;
+    var claim = trade + gec;
+    if (trade && gec) W.push("同时填了市场化交易绿电和单独购买的绿证：绿电交易若已附带绿证，两者对应同一批电量，只能算一次，请核对凭证后只填一种。");
+    if (claim > grid && grid > 0) { W.push("绿电交易与绿证合计超过外购电量，超出部分不计入。"); claim = grid; }
+    var reKwh = pv + direct + claim, reTce = reKwh * KGCE.elec_kwh / 1000 + t["其他可再生能源"];
+    var method = String(e.carbon_method || "location").toLowerCase();
+    var prov = String(meta.province || "").replace(/省|市|自治区|壮族|回族|维吾尔/g, "");
+    var factor, ov = num(e.grid_factor);
+    if (ov !== null) factor = ov; else if (method === "market") factor = RESIDUAL; else factor = GRID[prov] || GRID["全国"];
+    var emitKwh = method === "market" ? Math.max(grid - claim, 0) : grid;
+    var co2 = emitKwh * factor / 1000;
+    var map = [["ng_m3", "natural_gas_m3"], ["diesel_t", "diesel_t"], ["gasoline_t", "gasoline_t"], ["lpg_t", "lpg_t"], ["fuel_oil_t", "fuel_oil_t"], ["coal_t", "coal_t"], ["coke_t", "coke_t"]];
+    for (var i = 0; i < map.length; i++) {
+      var p = FUEL_EF[map[i][0]];
+      co2 += z(e[map[i][1]]) / p[3] * p[0] / 1000 * p[1] * p[2] * 44 / 12;
+    }
+    co2 += z(e.heat_gj) * 0.11 + z(e.other_co2_t);
+    return { has_energy: has, total_tce: has ? total : null, re_tce: reTce, re_kwh: reKwh, co2_total: has ? co2 : null, grid_factor: factor, tce_by_type: t, carbon_method: method };
+  }
+
+  function basis(data, id) {
+    var meta = o(data.meta), out = o(data.output), b = (o(meta.basis_by)[id]) || meta.basis || "产值";
+    if (b === "产量") return [num(out.qty), meta.product_unit || "产品单位"];
+    return [num(out.value_wan), "万元"];
+  }
+
+  function actuals(data, en, W) {
+    var res = o(data.resources), pol = o(data.pollution), land = o(data.land), up = o(data.upgrade), out = o(data.output), ecms = o(data.ecms), dir = o(data.direct);
+    var A = {};
+    function per(n, id, u) { var b = basis(data, id); return [(n === null || !b[0]) ? null : n / b[0], u + "/" + b[1]]; }
+    A["1"] = per(en.total_tce, "1", "tce");
+    A["2"] = per(en.co2_total, "2", "tCO2");
+    A["3"] = [en.total_tce ? en.re_tce / en.total_tce * 100 : null, "%"];
+    var funcs = (ecms.functions || []).filter(function (f) { return !!f; });
+    var uniq = {}; funcs.forEach(function (f) { uniq[f] = 1; });
+    var n = Object.keys(uniq).length;
+    if (!funcs.length && num(ecms.count) !== null) { n = Math.floor(num(ecms.count)); funcs = ["(数量)"]; }
+    var run = ecms.running;
+    if (run === true || ["是", "true", "True", "1"].indexOf(String(run)) >= 0) A["4"] = [Math.min(n, 12), "项"];
+    else if ((run === null || run === undefined) && !funcs.length) A["4"] = [null, "项"];
+    else A["4"] = [0, "项"];
+    A["5"] = per(num(res.material_qty), "5", res.material_unit || "原材料单位");
+    var wv = num(res.water_withdrawal_m3), vr = num(res.water_reuse_m3);
+    A["6"] = per(wv, "6", "m³");
+    A["7"] = [(wv !== null && vr !== null && wv + vr > 0) ? vr / (wv + vr) * 100 : null, "%"];
+    var zg = num(res.sw_generated_t), zr = num(res.sw_utilized_t), zw = z(res.sw_stock_utilized_t);
+    A["8"] = [(zg !== null && zr !== null && zg + zw > 0) ? zr / (zg + zw) * 100 : null, "%"];
+    if (A["8"][0] !== null && A["8"][0] > 100.0001) W.push("一般工业固废综合利用率超过100%，请核对口径。");
+    var inv = num(up.invest_3y_wan), o3 = num(out.value_3y_wan);
+    A["10"] = [(inv !== null && o3) ? inv / o3 * 100 : null, "%"];
+    A["11"] = per(num(pol.qty), "11", pol.unit || "污染物单位");
+    var area = num(land.area_m2), val = num(out.value_wan);
+    if ((o(meta(data).basis_by)["14"] || "") === "产量") {
+      var cap = num(land.capacity); A["14"] = [(cap !== null && area) ? cap / area : null, "产品单位/m²"];
+    } else A["14"] = [(val !== null && area) ? val / area : null, "万元/m²"];
+    for (var key in dir) { var dv = num(dir[key]); if (dv !== null && A[key]) A[key] = [dv, A[key][1]]; }
+    return A;
+  }
+  function meta(d) { return o(d.meta); }
+
+  function frac(a, lead, base, kind) {
+    if (kind === "rev") {
+      if (lead > base) { var t = lead; lead = base; base = t; }
+      if (a <= lead) return 1; if (a >= base) return 0; return (base - a) / (base - lead);
+    }
+    if (lead < base) { var t2 = lead; lead = base; base = t2; }
+    if (a >= lead) return 1; if (a <= base) return 0; return (a - base) / (lead - base);
+  }
+
+  function scoreAll(data, A, W) {
+    var bm = o(data.benchmarks), q = o(data.qualitative);
+    return MODEL.map(function (m) {
+      var row = { id: m.id, cat: m.cat, name: m.name, kind: m.kind, weight: m.weight, actual: null, unit: "", lead: null, base: null, score: null, status: "", level: null };
+      if (m.kind === "qual") {
+        var lv = String(q[m.id] || "").trim().toUpperCase().charAt(0);
+        row.level = lv || null;
+        if (QUAL.hasOwnProperty(lv)) { row.score = m.weight * QUAL[lv]; row.status = lv === "A" ? "full" : (lv === "B" ? "partial" : "zero"); }
+        else row.status = "unknown";
+        return row;
+      }
+      var a = A[m.id] || [null, ""];
+      row.actual = a[0]; row.unit = a[1];
+      var lead, base;
+      if (m.fixed) { lead = m.fixed[0]; base = m.fixed[1]; }
+      else {
+        var b = o(bm[m.id]); lead = num(b.lead); base = num(b.base);
+        if (lead !== null && base !== null && ((m.kind === "rev" && lead > base) || (m.kind === "pos" && lead < base)))
+          W.push("指标" + m.id + "【" + m.name + "】引领值和基准值方向填反，已自动对调。");
+      }
+      row.lead = lead; row.base = base;
+      if (row.actual === null) row.status = "no_data";
+      else if (lead === null || base === null) row.status = "no_benchmark";
+      else {
+        var f = lead === base ? (((m.kind === "rev" && row.actual <= lead) || (m.kind === "pos" && row.actual >= lead)) ? 1 : 0) : frac(row.actual, lead, base, m.kind);
+        row.score = m.weight * f;
+        row.status = f >= 0.9999 ? "full" : (f <= 0.0001 ? "zero" : "partial");
+      }
+      return row;
+    });
+  }
+
+  function gates(data) {
+    var gin = o(data.gates), worst = 0, items = [], basicItems = [], vetoFrom = null;
+    GATES.forEach(function (gt) {
+      var v = String(gin[gt[0]] || "不确定").trim(), lvl;
+      if (["否", "无", "没有", "no", "No", "false"].indexOf(v) >= 0) lvl = 0;
+      else if (["是", "有", "yes", "Yes", "true"].indexOf(v) >= 0) lvl = gt[2] === "veto" ? 2 : 1;
+      else { lvl = 1; v = "不确定"; }
+      items.push({ key: gt[0], label: gt[1], value: v, level: ["ok", "warn", "veto"][lvl] });
+      if (lvl === 2 && vetoFrom === null) vetoFrom = "gate";
+      worst = Math.max(worst, lvl);
+    });
+    var bin = o(data.basic);
+    BASIC.forEach(function (bt) {
+      var v = String(bin[bt[0]] || "不确定").trim(), lvl, name;
+      if (bt[0] === "b1") { lvl = ["是", "有"].indexOf(v) >= 0 ? 0 : (["否", "无"].indexOf(v) >= 0 ? 2 : 1); name = ["ok", "warn", "veto"][lvl]; }
+      else if (["认证", "已认证", "获证"].indexOf(v) >= 0) { lvl = 0; name = "ok"; }
+      else if (["建立", "已建立", "建立运行", "运行未认证"].indexOf(v) >= 0) { lvl = 0; name = "ok_weak"; }
+      else if (["无", "否", "未建立"].indexOf(v) >= 0) { lvl = 2; name = "veto"; }
+      else { lvl = 1; name = "warn"; }
+      basicItems.push({ key: bt[0], label: bt[1], value: v, level: name });
+      if (lvl === 2 && vetoFrom === null) vetoFrom = "basic";
+      worst = Math.max(worst, lvl);
+    });
+    return { status: ["ok", "warn", "veto"][worst], items: items, basic: basicItems, veto_from: vetoFrom };
+  }
+
+  function verdict(tier, t, total, gs) {
+    var c = total.certain, u = total.upper, d = { tier: tier, threshold: t };
+    if (gs.status === "veto") { d.verdict = "不具备申报条件"; d.gap = null; }
+    else if (c >= t - 1e-9) { d.verdict = "确定分已过线"; d.gap = 0; }
+    else if (total.pending_weight > 30) { d.verdict = "信息不足"; d.gap = t - c; }
+    else if (u >= t - 1e-9) { d.verdict = "有希望，待补齐"; d.gap = t - c; }
+    else { d.verdict = "目前达不到"; d.gap = t - c; }
+    return d;
+  }
+
+  function tiers(data, total, gs) {
+    var m = meta(data), th = o(data.thresholds), key = !!m.key_industry, cur = m.current_level || "无", out = [];
+    var need = []; if (cur === "无") need.push("市级"); if (cur === "无" || cur === "市级") need.push("省级");
+    need.forEach(function (tier) { var t = num(th[tier]); if (t === null) t = TH[tier][key ? "key" : "nonkey"]; out.push(verdict(tier, t, total, gs)); });
+    var pre = []; if (m.is_c_manufacturing === false) pre.push("非C类制造业"); if (cur !== "省级" && cur !== "国家级") pre.push("须先列入省级名单");
+    var avg = num(th.national_regional_avg), nat = { tier: "国家级", threshold: avg, prereq: pre };
+    if (cur === "国家级") nat.verdict = "已是国家级，看动态管理";
+    else if (gs.status === "veto") nat.verdict = "不具备申报条件";
+    else if (pre.length) nat.verdict = "当年不能报";
+    else if (avg !== null) { var v = verdict("国家级", avg, total, gs); nat.verdict = v.verdict; nat.gap = v.gap; }
+    else nat.verdict = "需对比本地区平均水平";
+    out.push(nat);
+    return out;
+  }
+
+  function gaps(data, rows, en) {
+    var res = o(data.resources), out = o(data.output), list = [];
+    rows.forEach(function (x) {
+      var p = PLAY[x.id], gain = x.score !== null ? x.weight - x.score : x.weight;
+      if (gain <= 0.0001) return;
+      var it = { id: x.id, name: x.name, gain: round(gain, 2), timing: p[0], speed: p[1], how: p[2], need: "", kind: "improve" };
+      var a = x.actual, lead = x.lead, base = x.base;
+      if (x.status === "no_data") { it.kind = "data"; it.timing = "info"; it.speed = "快（补资料）"; it.need = "先补数据"; }
+      else if (x.status === "no_benchmark") { it.kind = "benchmark"; it.timing = "info"; it.speed = "快（补资料）"; it.need = "先找对标值（得分在0到" + x.weight + "分之间）"; }
+      else if (x.status === "unknown") { it.kind = "qual"; it.need = "确认开展情况并准备证明"; }
+      else if (x.kind === "qual") { it.kind = "qual"; it.need = "从" + x.level + "档提到A档：" + QUAL_TEXT[x.id].A; }
+      else if (x.id === "3" && en.total_tce) {
+        var mwh = (lead / 100 * en.total_tce - en.re_tce) / KGCE.elec_kwh;
+        it.need = "需新增约" + Math.round(mwh).toLocaleString("zh-CN") + " MWh 可再生电力（约" + Math.round(mwh).toLocaleString("zh-CN") + "张绿证）"; it.qty = mwh;
+      } else if (x.id === "4") { it.need = "再补" + Math.max(0, 8 - (a || 0)) + "项功能（每项0.75分）"; it.qty = Math.max(0, 8 - (a || 0)); }
+      else if (x.id === "7") { var wv = num(res.water_withdrawal_m3), vr = z(res.water_reuse_m3), tt = lead / 100; if (wv !== null && tt < 1) { it.qty = tt / (1 - tt) * wv - vr; it.need = "重复利用水量再增加约" + Math.round(it.qty).toLocaleString("zh-CN") + " m³"; } }
+      else if (x.id === "8") { it.qty = lead / 100 * (z(res.sw_generated_t) + z(res.sw_stock_utilized_t)) - z(res.sw_utilized_t); it.need = "固废综合利用量再增加约" + round(it.qty, 1) + " t"; }
+      else if (x.id === "10") { var o3 = num(out.value_3y_wan); if (o3) { it.qty = lead / 100 * o3 - z(o(data.upgrade).invest_3y_wan); it.need = "近三年真实改造投资还差约" + Math.round(it.qty).toLocaleString("zh-CN") + "万元"; } }
+      else if (x.id === "14") { var area = num(o(data.land).area_m2); if (area && a !== null) { it.qty = (lead - a) * area; it.need = "用地不变时需新增产值约" + Math.round(it.qty).toLocaleString("zh-CN") + "万元"; } }
+      else if (x.kind === "rev" && a !== null) { var b = basis(data, x.id); if (b[0]) { it.qty = (a - lead) * b[0]; it.need = "总量需减少约" + round(it.qty, 1); } }
+      list.push(it);
+    });
+    var sr = { "快": 0, "快–中": 1, "快（整理）/慢（更新设备）": 1, "快–中（1–3个月）": 1, "中": 2, "中（2–4个月）": 2, "中–慢": 3, "跨年": 4, "慢": 5 };
+    var kr = { data: 0, benchmark: 0, qual: 1, improve: 2 };
+    list.sort(function (p, q) { return (kr[p.kind] - kr[q.kind]) || (q.gain - p.gain) || ((sr[p.speed] || 3) - (sr[q.speed] || 3)); });
+    return list;
+  }
+
+  function pathToPass(total, ts, gl) {
+    var target = null;
+    for (var i = 0; i < ts.length; i++) { var v = ts[i]; if (v.threshold !== null && v.threshold !== undefined && v.gap && v.gap > 0 && v.verdict !== "不具备申报条件") { target = v; break; } }
+    if (!target) return null;
+    var need = target.gap, acc = 0, steps = [];
+    var st = gl.filter(function (a) { return a.timing === "status"; }).sort(function (a, b) { return b.gain - a.gain; });
+    var yr = gl.filter(function (a) { return a.timing === "year" && a.kind === "improve"; });
+    st.concat(yr).forEach(function (a) { if (acc >= need - 1e-9) return; acc += a.gain; steps.push({ id: a.id, name: a.name, gain: a.gain, timing: a.timing, after: round(total.certain + acc, 1) }); });
+    var pend = gl.filter(function (a) { return a.timing === "info"; });
+    return { tier: target.tier, threshold: target.threshold, need: round(need, 1), steps: steps, enough: acc >= need - 1e-9, pending: pend.length, pending_gain: pend.reduce(function (s, a) { return s + a.gain; }, 0) };
+  }
+
+  function evaluate(data) {
+    data = o(data);
+    var W = [], en = computeEnergy(data, W), A = actuals(data, en, W), rows = scoreAll(data, A, W);
+    var certain = 0, pending = 0;
+    rows.forEach(function (x) { if (x.score !== null) certain += x.score; else pending += x.weight; });
+    var total = { certain: certain, pending_weight: pending, upper: certain + pending };
+    var cats = CATS.map(function (c) {
+      var rs = rows.filter(function (x) { return x.cat === c; }), w = 0, s = 0, p = 0;
+      rs.forEach(function (x) { w += x.weight; if (x.score !== null) s += x.score; else p += x.weight; });
+      return { cat: c, weight: w, score: s, upper: s + p };
+    });
+    var gs = gates(data), ts = tiers(data, total, gs), gl = gaps(data, rows, en);
+    return { energy: en, indicators: rows, categories: cats, total: { certain: round(certain, 1), upper: round(certain + pending, 1), pending_weight: round(pending, 1), raw: certain }, gates: gs, tiers: ts, gaps: gl, path: pathToPass(total, ts, gl), warnings: W };
+  }
+
+  var api = { evaluate: evaluate, MODEL: MODEL, ECMS_FUNCS: ECMS_FUNCS, QUAL_TEXT: QUAL_TEXT, GRID: GRID, GATES: GATES, BASIC: BASIC, num: num };
+  if (typeof module !== "undefined" && module.exports) module.exports = api; else root.GFEngine = api;
+})(this);
+</script>
+<script>
+(function () {
+  "use strict";
+  var E = window.GFEngine;
+  var DEMO = {"schema": "lvse-gongchang/v1", "meta": {"name": "示例传动科技有限公司（演示数据）", "province": "江苏", "industry": "齿轮及齿轮减、变速箱制造", "industry_code": "C3453", "is_c_manufacturing": true, "key_industry": false, "target_level": "省级", "current_level": "市级", "eval_year": 2025, "smart_factory": "先进级", "honors": ["专精特新"], "basis": "产值", "product_unit": "台"}, "thresholds": {}, "gates": {"g1": "否", "g2": "否", "g3": "否", "g4": "否", "g5": "否", "g6": "否", "g7": "否", "g8": "否", "g9": "否"}, "basic": {"b1": "是", "b2": "认证", "b3": "认证", "b4": "建立运行", "b5": "认证"}, "energy": {"grid_kwh": 18900000, "pv_self_kwh": 2600000, "green_trade_kwh": 0, "gec_mwh": 0, "natural_gas_m3": 380000, "diesel_t": 45, "gasoline_t": 12, "carbon_method": "location"}, "output": {"value_wan": 62000, "qty": 48000, "value_3y_wan": 171000}, "resources": {"water_withdrawal_m3": 96000, "water_reuse_m3": 1104000, "material_qty": 21800, "material_unit": "t", "sw_generated_t": 2350, "sw_utilized_t": 2256, "sw_stock_utilized_t": 0}, "pollution": {"name": "VOCs", "qty": 6.2, "unit": "t"}, "land": {"area_m2": 66700}, "upgrade": {"invest_3y_wan": 4000}, "ecms": {"running": true, "functions": ["能耗查询", "能源消费量和强度计算", "能源消费分析与用能策略推荐", "能效对标", "能流分析", "碳排放"]}, "qualitative": {"9": "A", "12": "C", "13": "B"}, "benchmarks": {"1": {"lead": 0.045, "base": 0.07, "src": "演示值，非真实行业数据"}, "2": {"lead": 0.16, "base": 0.3, "src": "演示值，非真实行业数据"}, "3": {"lead": 12, "base": 2, "src": "演示值，非真实行业数据"}, "6": {"lead": 1.2, "base": 3.0, "src": "演示值，非真实行业数据"}, "7": {"lead": 90, "base": 70, "src": "演示值，非真实行业数据"}, "8": {"lead": 95, "base": 80, "src": "演示值，非真实行业数据"}, "10": {"lead": 2.5, "base": 0.5, "src": "演示值，非真实行业数据"}, "14": {"lead": 1.0, "base": 0.5, "src": "演示值，非真实行业数据"}}};
+  var STORE = "lvse-gongchang-v1";
+  var PROVS = Object.keys(E.GRID).filter(function (k) { return ["全国", "华北", "东北", "华东", "华中", "西北", "南方", "西南"].indexOf(k) < 0; });
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function qa(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+  function fa(v) {
+    if (v === null || v === undefined || isNaN(v)) return "—";
+    var a = Math.abs(v);
+    if (a === 0) return "0";
+    if (a >= 1000) return Math.round(v).toLocaleString("zh-CN");
+    if (a >= 100) return v.toFixed(1);
+    if (a >= 1) return v.toFixed(2);
+    if (a >= 0.01) return v.toFixed(4);
+    return v.toFixed(-Math.floor(Math.log10(a)) + 2);
+  }
+  function f1(v) { return v === null || v === undefined ? "—" : (Math.round(v * 10 + 1e-9) / 10).toFixed(1); }
+  function fth(v) { return Math.abs(v - Math.round(v)) < 1e-9 ? String(Math.round(v)) : f1(v); }
+  function f2(v) { return v === null || v === undefined ? "—" : v.toFixed(2); }
+
+  var SPEC = [
+    { id: "s1", title: "1 基本情况", note: "申报主体须是独立法人或视同法人的独立核算单位。重点行业在平台上按行业评价要求打分，本页按通则计算，仅供参照。", fields: [
+      ["meta.name", "企业名称", "text"], ["meta.province", "所在省份", "select", PROVS, "用于选取电力排放因子"],
+      ["meta.industry", "所属行业", "text", null, "按 GB/T 4754"], ["meta.is_c_manufacturing", "是否属于C类制造业", "yesno"],
+      ["meta.key_industry", "是否属于重点行业", "yesno", null, "以管理平台显示为准"],
+      ["meta.target_level", "目标层级", "select", ["市级", "省级", "国家级"]], ["meta.current_level", "当前已获层级", "select", ["无", "市级", "省级", "国家级"], "国家级须先是省级"],
+      ["meta.eval_year", "评价年", "num", null, "申报年份的上一自然年"], ["meta.smart_factory", "智能工厂等级", "select", ["无", "基础级", "先进级", "卓越级", "领航级"]],
+      ["meta.honors", "已获荣誉", "list", null, "用顿号分隔，如 能效领跑者、专精特新"], ["meta.basis", "强度指标口径", "select", ["产值", "产量"], "要和对标值口径一致"],
+      ["meta.product_unit", "产品计量单位", "text"]] },
+    { id: "s2", title: "2 门槛", note: "近三年任一否决情形为“是”就不能申报。四个管理体系要求建立并运行，没有强制认证。", fields: [] },
+    { id: "s3", title: "3 能源与碳（评价年全年）", note: "电力按当量值 0.1229 kgce/kWh 折标；排放按2023年省级电力因子（生态环境部 国家统计局 公告2025年第47号）。", fields: [
+      ["energy.grid_kwh", "外购电网电量（含绿电交易）", "num", null, null, "kWh"], ["energy.pv_self_kwh", "自发自用光伏等可再生电量", "num", null, "计入能耗，零排放", "kWh"],
+      ["energy.direct_green_kwh", "专线直供可再生电量", "num", null, null, "kWh"], ["energy.green_trade_kwh", "其中：市场化交易绿电电量", "num", null, "已含在外购电量里", "kWh"],
+      ["energy.gec_mwh", "单独购买的绿证", "num", null, "1张=1 MWh；绿电交易附带的绿证不要再填", "MWh"], ["energy.natural_gas_m3", "天然气", "num", null, null, "m³"],
+      ["energy.ng_coef", "天然气折标系数", "num", null, "留空=1.2143", "kgce/m³"], ["energy.diesel_t", "柴油", "num", null, null, "t"], ["energy.gasoline_t", "汽油", "num", null, null, "t"],
+      ["energy.lpg_t", "液化石油气", "num", null, null, "t"], ["energy.fuel_oil_t", "燃料油", "num", null, null, "t"], ["energy.coal_t", "原煤", "num", null, null, "t"],
+      ["energy.coke_t", "焦炭", "num", null, null, "t"], ["energy.heat_gj", "外购热力", "num", null, null, "GJ"], ["energy.other_tce", "其他化石能源", "num", null, "其排放填在“过程排放及其他”", "tce"],
+      ["energy.other_renewable_tce", "其他可再生能源（非电）", "num", null, null, "tce"], ["energy.other_co2_t", "过程排放及其他", "num", null, null, "tCO2"],
+      ["energy.feedstock_tce", "用作原料的能源（扣除）", "num", null, null, "tce"], ["energy.exported_tce", "外供能源（扣除）", "num", null, null, "tce"],
+      ["energy.carbon_method", "碳排放口径", "sel2", [["", "地区平均因子（缺省）"], ["location", "地区平均因子"], ["market", "市场法"]], "两种口径不要混用"],
+      ["energy.grid_factor", "电网因子覆盖值", "num", null, "当地另有规定时填", "kgCO2/kWh"]] },
+    { id: "s4", title: "4 资源与产出", note: "产值用统计报表的工业总产值（现价），不要用营业收入。取水量不含基建改造、消防和外供。", fields: [
+      ["output.value_wan", "工业总产值（评价年）", "num", null, null, "万元"], ["output.qty", "合格产品产量", "num", null, "按产量口径时使用", "产品单位"],
+      ["output.value_3y_wan", "近三年工业总产值合计", "num", null, null, "万元"], ["upgrade.invest_3y_wan", "近三年绿色低碳改造投资", "num", null, "只计真实实施、有立项和验收的项目", "万元"],
+      ["resources.water_withdrawal_m3", "取水量", "num", null, null, "m³"], ["resources.water_reuse_m3", "重复利用水量", "num", null, "循环水加回用水", "m³"],
+      ["resources.material_qty", "主要原材料消耗量", "num"], ["resources.material_unit", "原材料单位", "text"],
+      ["resources.sw_generated_t", "一般工业固废产生量", "num", null, null, "t"], ["resources.sw_utilized_t", "综合利用量（不含外购）", "num", null, null, "t"],
+      ["resources.sw_stock_utilized_t", "利用往年贮存量", "num", null, null, "t"], ["pollution.name", "主要污染物名称", "text", null, "如 COD、VOCs、颗粒物"],
+      ["pollution.qty", "主要污染物产生或排放量", "num"], ["pollution.unit", "污染物单位", "text"], ["land.area_m2", "工厂用地面积", "num", null, "按不动产权证；1亩≈666.67 m²", "m²"]] },
+    { id: "s5", title: "5 定性项与能碳管理系统", note: "能碳管理系统必须建成运行才计分；每项功能以能拿出运行截图和数据导出为准。", fields: [["ecms.running", "能碳管理系统是否建成运行", "yesno"]] },
+    { id: "s6", title: "6 对标值", note: "引领值约等于行业前5%先进水平，基准值约等于行业平均。对标值决定得分，必须有可追溯的来源；没有就留空，宁可待定也不要估。", fields: [] }
+  ];
+  var BM_IDS = ["1", "2", "3", "5", "6", "7", "8", "10", "11", "14"];
+
+  function fieldRow(f) {
+    var k = f[0], label = f[1], t = f[2], opts = f[3], hint = f[4], unit = f[5];
+    var id = "f_" + k.replace(/\./g, "_");
+    var ctrl;
+    if (t === "select" || t === "yesno" || t === "tri" || t === "sel2") {
+      var o = t === "yesno" ? [["", "请选择"], ["是", "是"], ["否", "否"]]
+        : t === "tri" ? [["不确定", "不确定"], ["否", "否"], ["是", "是"]]
+        : t === "sel2" ? opts : [["", "请选择"]].concat(opts.map(function (x) { return [x, x]; }));
+      ctrl = '<select id="' + id + '" data-key="' + k + '" data-t="' + t + '">' + o.map(function (x) { return '<option value="' + esc(x[0]) + '">' + esc(x[1]) + "</option>"; }).join("") + "</select>";
+    } else {
+      ctrl = '<input type="text" id="' + id + '" data-key="' + k + '" data-t="' + t + '"' + (t === "num" ? ' inputmode="decimal"' : ' class="t"') + ">";
+    }
+    var row = document.createElement("div");
+    row.className = "f";
+    row.innerHTML = '<label for="' + id + '">' + esc(label) + (hint ? '<span class="hint">' + esc(hint) + "</span>" : "") + "</label>" +
+      '<div class="inwrap">' + ctrl + (unit ? '<span class="unit">' + esc(unit) + "</span>" : "") + "</div>";
+    return row;
+  }
+
+  function buildForm() {
+    var form = document.getElementById("form");
+    SPEC.forEach(function (s) {
+      var sec = document.createElement("section");
+      sec.id = s.id;
+      sec.innerHTML = "<h2>" + esc(s.title) + '</h2><p class="secnote">' + esc(s.note) + "</p>";
+      s.fields.forEach(function (f) { sec.appendChild(fieldRow(f)); });
+      if (s.id === "s2") {
+        E.GATES.forEach(function (g) { sec.appendChild(fieldRow(["gates." + g[0], g[1], "tri", null, g[2] === "veto" ? null : "标准基本要求，部分地市视为否决"])); });
+        sec.appendChild(fieldRow(["basic.b1", E.BASIC[0][1], "select", ["是", "部分", "否"]]));
+        for (var i = 1; i < E.BASIC.length; i++) sec.appendChild(fieldRow(["basic." + E.BASIC[i][0], E.BASIC[i][1], "select", ["认证", "建立运行", "未建立"]]));
+        sec.appendChild(fieldRow(["thresholds.市级", "市级分数线", "num", null, "留空：重点行业60、非重点75（以当地通知为准）", "分"]));
+        sec.appendChild(fieldRow(["thresholds.省级", "省级分数线", "num", null, "留空：重点行业60、非重点75（安徽2026年口径）", "分"]));
+        sec.appendChild(fieldRow(["thresholds.national_regional_avg", "本地区已有国家绿色工厂平均分", "num", null, "国家级没有固定分数线，知道就填", "分"]));
+      }
+      if (s.id === "s3") {
+        var ro = document.createElement("div");
+        ro.className = "readout num";
+        ro.id = "readout";
+        sec.appendChild(ro);
+      }
+      if (s.id === "s5") {
+        var ck = document.createElement("div");
+        ck.className = "checks";
+        ck.innerHTML = E.ECMS_FUNCS.map(function (fn, i) { return '<label><input type="checkbox" data-key="ecms.functions" data-t="check" value="' + esc(fn) + '">' + (i + 1) + " " + esc(fn) + "</label>"; }).join("");
+        sec.appendChild(ck);
+        [["9", "指标9 生产工艺和设备先进性（6分）"], ["12", "指标12 绿色设计（8分）"], ["13", "指标13 产品碳足迹（8分）"]].forEach(function (q) {
+          var d = document.createElement("div");
+          d.className = "qual";
+          var html = "<p>" + esc(q[1]) + '</p><div class="opts" role="radiogroup" aria-label="' + esc(q[1]) + '">';
+          ["A", "B", "C"].forEach(function (lv) {
+            html += '<label><input type="radio" name="q' + q[0] + '" data-key="qualitative.' + q[0] + '" data-t="radio" value="' + lv + '"><span><b>' + lv + "档</b> " + esc(E.QUAL_TEXT[q[0]][lv]) + "</span></label>";
+          });
+          html += '<label><input type="radio" name="q' + q[0] + '" data-key="qualitative.' + q[0] + '" data-t="radio" value=""><span class="dim">未说明</span></label></div>';
+          d.innerHTML = html;
+          sec.appendChild(d);
+        });
+      }
+      if (s.id === "s6") {
+        var w = document.createElement("div");
+        w.className = "bmwrap";
+        var rows = BM_IDS.map(function (id) {
+          var m = E.MODEL.filter(function (x) { return x.id === id; })[0];
+          return "<tr><td>" + id + " " + esc(m.name) + '</td><td class="act" id="act-' + id + '">—</td>' +
+            '<td><input type="text" inputmode="decimal" aria-label="指标' + id + '引领值" data-key="benchmarks.' + id + '.lead" data-t="num"></td>' +
+            '<td><input type="text" inputmode="decimal" aria-label="指标' + id + '基准值" data-key="benchmarks.' + id + '.base" data-t="num"></td>' +
+            '<td><input type="text" aria-label="指标' + id + '来源" data-key="benchmarks.' + id + '.src" data-t="text"></td></tr>';
+        }).join("");
+        w.innerHTML = '<table class="bm"><thead><tr><th>指标</th><th>你的实际值</th><th>引领值</th><th>基准值</th><th>来源</th></tr></thead><tbody>' + rows + "</tbody></table>";
+        sec.appendChild(w);
+      }
+      form.appendChild(sec);
+    });
+  }
+
+  function setPath(o, path, v) { var ks = path.split("."); for (var i = 0; i < ks.length - 1; i++) { if (!o[ks[i]] || typeof o[ks[i]] !== "object") o[ks[i]] = {}; o = o[ks[i]]; } o[ks[ks.length - 1]] = v; }
+  function getPath(o, path) { var ks = path.split("."); for (var i = 0; i < ks.length; i++) { if (o === null || o === undefined) return undefined; o = o[ks[i]]; } return o; }
+  var BOOLS = ["meta.is_c_manufacturing", "meta.key_industry", "ecms.running"];
+
+  function collect() {
+    var d = { schema: "lvse-gongchang/v1" };
+    qa("[data-key]").forEach(function (n) {
+      var t = n.getAttribute("data-t"), k = n.getAttribute("data-key"), v = n.value;
+      if (t === "check") return;
+      if (t === "radio" && !n.checked) return;
+      if (v === "" || v === null || v === undefined) return;
+      if (BOOLS.indexOf(k) >= 0) v = v === "是";
+      else if (t === "num") { var x = E.num(v); if (x === null) return; v = x; }
+      else if (t === "list") v = v.split(/[,，、;；\s]+/).filter(Boolean);
+      setPath(d, k, v);
+    });
+    setPath(d, "ecms.functions", qa('input[data-t="check"]').filter(function (c) { return c.checked; }).map(function (c) { return c.value; }));
+    return d;
+  }
+
+  function fill(d) {
+    d = d || {};
+    var fs = getPath(d, "ecms.functions") || [];
+    qa("[data-key]").forEach(function (n) {
+      var t = n.getAttribute("data-t"), k = n.getAttribute("data-key"), v = getPath(d, k);
+      if (t === "check") { n.checked = fs.indexOf(n.value) >= 0; return; }
+      if (t === "radio") { var s = v ? String(v).trim().toUpperCase().charAt(0) : ""; n.checked = s === n.value; return; }
+      if (v === undefined || v === null) { n.value = t === "tri" ? "不确定" : ""; return; }
+      if (v === true) v = "是"; else if (v === false) v = "否";
+      if (Object.prototype.toString.call(v) === "[object Array]") v = v.join("、");
+      n.value = String(v);
+    });
+  }
+
+  function tone(v) {
+    if (/已过线|已是国家级/.test(v)) return "tone-ok";
+    if (/有希望|信息不足|需对比/.test(v)) return "tone-mid";
+    return "tone-bad";
+  }
+  var CHIP = { full: ["full", "满分"], partial: ["partial", "部分"], zero: ["zero", "零分"], no_data: ["gap", "缺数据"], no_benchmark: ["gap", "缺对标"], unknown: ["gap", "未说明"] };
+
+  function render() {
+    var d = collect(), r = E.evaluate(d), meta = d.meta || {};
+    var target = meta.target_level || "省级", tier = null;
+    r.tiers.forEach(function (t) { if (!tier && t.tier === target) tier = t; });
+    if (!tier) tier = r.tiers[0];
+    var th = tier && tier.threshold !== null && tier.threshold !== undefined ? tier.threshold : null;
+    var c = r.total.certain, u = r.total.upper, p = r.total.pending_weight;
+    var gap = th !== null ? Math.max(0, th - r.total.raw) : null;
+    var vtext = tier.tier + "：" + tier.verdict + (th !== null ? "（分数线 " + fth(th) + (gap > 0.0001 ? "，还差 " + f1(gap) + " 分" : "") + "）" : "");
+    var h = [];
+    h.push('<p class="who">' + esc(meta.name || "未填企业名称") + "　" + esc(meta.industry || "") + (meta.key_industry ? "　重点行业（以平台行业要求为准）" : "") + "</p>");
+    h.push('<div class="scoreline"><span class="big" id="score-big">' + f1(c) + '</span><span class="dim">确定分 / 100</span></div>');
+    h.push('<p class="sub">待定 ' + f1(p) + " 分，上限 " + f1(u) + "</p>");
+    h.push('<div class="ruler" role="img" aria-label="确定分' + f1(c) + "，上限" + f1(u) + (th !== null ? "，分数线" + fth(th) : "") + '"><div class="track">' +
+      '<div class="seg c" style="width:' + Math.min(100, c) + '%"></div><div class="seg p" style="left:' + Math.min(100, c) + "%;width:" + Math.max(0, Math.min(100, u) - Math.min(100, c)) + '%"></div>' +
+      (th !== null ? '<div class="tick" style="left:' + Math.min(100, th) + '%"><span>' + esc(tier.tier) + "线 " + fth(th) + "</span></div>" : "") +
+      '</div><div class="scale"><span>0</span><span>50</span><span>100</span></div>' +
+      '<div class="legend"><span><i class="lc"></i>确定分</span><span><i class="lp"></i>待定分</span></div></div>');
+    h.push('<p class="verdict ' + tone(tier.verdict) + '" id="verdict">' + esc(vtext) + "</p>");
+    var vetoes = r.gates.items.concat(r.gates.basic).filter(function (x) { return x.level === "veto"; });
+    var warns = r.gates.items.concat(r.gates.basic).filter(function (x) { return x.level === "warn"; });
+    if (vetoes.length) h.push('<div class="alert tone-bad"><b>' + (r.gates.veto_from === "basic" ? "基本要求不满足" : "存在否决项") + '，不能申报：</b><ul>' + vetoes.map(function (x) { return "<li>" + esc(x.label) + "</li>"; }).join("") + "</ul></div>");
+    else if (warns.length) h.push('<div class="alert tone-mid"><b>门槛有 ' + warns.length + " 项待核实：</b><ul>" + warns.slice(0, 4).map(function (x) { return "<li>" + esc(x.label) + "</li>"; }).join("") + (warns.length > 4 ? "<li>……</li>" : "") + "</ul></div>");
+    if (r.path && r.path.steps.length) {
+      h.push('<div class="block"><h3>过' + esc(r.path.tier) + "线的最短路径（差 " + f1(r.path.need) + ' 分）</h3><ol class="path">' + r.path.steps.map(function (s) {
+        return "<li>指标" + s.id + " " + esc(s.name) + "：+" + f2(s.gain) + " 分，到 " + f1(s.after) + ' 分<span class="dim">（' + (s.timing === "status" ? "申报前完成即可" : "须改善评价年数据") + "）</span></li>";
+      }).join("") + "</ol>" + (!r.path.enough ? '<p class="dim">以上全部做到仍不够，需要更长周期的改造。</p>' : "") +
+        (r.path.pending ? '<p class="dim">另有 ' + r.path.pending + " 项缺数据或缺对标值（最多 " + f1(r.path.pending_gain) + " 分），补齐后可能直接改变结论。</p>" : "") + "</div>");
+    }
+    h.push('<div class="block"><h3>五化得分</h3>' + r.categories.map(function (k) {
+      var wc = k.weight ? k.score / k.weight * 100 : 0, wu = k.weight ? (k.upper - k.score) / k.weight * 100 : 0;
+      return '<div class="cat"><span>' + esc(k.cat) + '</span><span class="bar"><i style="width:' + wc + '%"></i><b style="left:' + wc + "%;width:" + wu + '%"></b></span><span class="v num">' + f1(k.score) + " / " + k.weight + "</span></div>";
+    }).join("") + "</div>");
+    h.push('<div class="block"><h3>指标明细（' + r.indicators.length + '项）</h3><ul class="inds">' + r.indicators.map(function (x) {
+      var act = x.kind === "qual" ? (x.level ? x.level + "档" : "—") : (x.actual === null ? "—" : fa(x.actual) + " " + x.unit);
+      var ch = CHIP[x.status] || ["partial", ""];
+      return '<li><span class="n">' + x.id + "</span><span>" + esc(x.name) + '<span class="a num">' + esc(act) + '</span></span><span class="s num">' + (x.score === null ? "—" : f2(x.score)) + "/" + x.weight + '</span><span class="chip ' + ch[0] + '">' + ch[1] + "</span></li>";
+    }).join("") + "</ul></div>");
+    if (r.gaps.length) h.push('<div class="block"><h3>提分清单</h3><ul class="gaps">' + r.gaps.slice(0, 7).map(function (g) {
+      return "<li>指标" + g.id + " " + esc(g.name) + "：最多 +" + f2(g.gain) + " 分。" + esc(g.need) + '<span class="dim">（' + esc(g.speed) + "）</span></li>";
+    }).join("") + "</ul></div>");
+    if (r.warnings.length) h.push('<div class="block"><details><summary>口径提醒（' + r.warnings.length + "）</summary><ul>" + r.warnings.map(function (w) { return "<li>" + esc(w) + "</li>"; }).join("") + "</ul></details></div>");
+    document.getElementById("ledger").innerHTML = h.join("");
+    var en = r.energy;
+    document.getElementById("readout").innerHTML = en.total_tce === null ? "填入能源用量后，这里显示综合能耗、可再生能源利用率和排放量。" :
+      "综合能耗 " + fa(en.total_tce) + " tce；可再生能源利用率 " + (en.total_tce ? fa(en.re_tce / en.total_tce * 100) : "—") + "%；二氧化碳排放 " + fa(en.co2_total) + " t；电网因子 " + en.grid_factor + " kgCO2/kWh";
+    BM_IDS.forEach(function (id) {
+      var x = r.indicators.filter(function (z) { return z.id === id; })[0], cell = document.getElementById("act-" + id);
+      if (cell) cell.textContent = x && x.actual !== null ? fa(x.actual) + " " + x.unit : "—";
+    });
+    document.getElementById("m-c").textContent = f1(c);
+    document.getElementById("m-u").textContent = f1(u);
+    document.getElementById("m-v").textContent = tier.tier + "：" + tier.verdict;
+    try { localStorage.setItem(STORE, JSON.stringify(d)); } catch (e) { /* 浏览器禁止存储时忽略 */ }
+    return r;
+  }
+
+  var timer = null;
+  function schedule() { clearTimeout(timer); timer = setTimeout(render, 120); }
+  function say(t) { document.getElementById("msg").textContent = t; }
+
+  buildForm();
+  var form = document.getElementById("form");
+  form.addEventListener("input", schedule);
+  form.addEventListener("change", schedule);
+  document.getElementById("b-demo").addEventListener("click", function () { fill(DEMO); render(); say("已载入演示数据（虚构企业，对标值为演示值）。"); });
+  document.getElementById("b-clear").addEventListener("click", function () { if (window.confirm("清空所有已填数据？")) { fill({}); render(); say("已清空。"); } });
+  document.getElementById("b-print").addEventListener("click", function () { window.print(); });
+  document.getElementById("b-export").addEventListener("click", function () {
+    var d = collect(), name = ((d.meta && d.meta.name) || "绿色工厂自评").replace(/[\\/:*?"<>|]/g, "");
+    var blob = new Blob([JSON.stringify(d, null, 2)], { type: "application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name + "-数据.json";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+    say("已导出。这个 JSON 可以交给“绿色工厂研判”技能生成 Word 报告。");
+  });
+  var file = document.getElementById("file");
+  document.getElementById("b-import").addEventListener("click", function () { file.click(); });
+  file.addEventListener("change", function () {
+    var f = file.files && file.files[0];
+    if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function () {
+      try { fill(JSON.parse(String(rd.result).replace(/^\uFEFF/, ""))); render(); say("已导入：" + f.name); }
+      catch (e) { say("导入失败：文件不是有效的 JSON。请导入本页导出的文件。"); }
+      file.value = "";
+    };
+    rd.readAsText(f, "utf-8");
+  });
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem(STORE) || "null"); } catch (e) { saved = null; }
+  fill(saved || DEMO);
+  render();
+  if (!saved) say("当前为演示数据（虚构企业）。改成你的数据后会自动保存在本机浏览器。");
+  window.GFApp = { collect: collect, fill: fill, render: render };
+})();
+</script>
+</body>
+</html>

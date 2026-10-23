@@ -1,0 +1,32 @@
+MIT License
+
+Copyright (c) 2026 悠米一下
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+使用约定（非许可条款，仅作说明）
+
+上面是标准的 MIT 许可，不附加任何使用限制。以下两点是作者的请求，不属于许可条件：
+
+1. 本工具用于企业自主申报的辅助研判，输出的是按公开标准推算的结果，不是主管部门的评审结论。
+   请勿用于「包过」「保过」类承诺，也请勿用它代替企业自身的核算、注册、提交和签字盖章。
+2. 申报数据必须真实。数据或材料造假的后果由申报企业承担（移出名单、三年内不得再申报）。
+   本工具刻意不提供凑分、编造对标值、把不该算的算进去的功能，请不要修改代码来绕过这些边界。

@@ -1,0 +1,13 @@
+# 统一用 LF，避免 Windows 上提交后脚本出现 CRLF
+* text=auto eol=lf
+
+*.py   text eol=lf
+*.md   text eol=lf
+*.txt  text eol=lf
+*.json text eol=lf
+*.html text eol=lf
+
+*.png  binary
+*.xlsx binary
+*.zip  binary
+*.skill binary

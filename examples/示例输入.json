@@ -1,0 +1,132 @@
+{
+  "schema": "lvse-gongchang/v1",
+  "meta": {
+    "name": "示例传动科技有限公司（演示数据）",
+    "province": "江苏",
+    "industry": "齿轮及齿轮减、变速箱制造",
+    "industry_code": "C3453",
+    "is_c_manufacturing": true,
+    "key_industry": false,
+    "target_level": "省级",
+    "current_level": "市级",
+    "eval_year": 2025,
+    "smart_factory": "先进级",
+    "honors": [
+      "专精特新"
+    ],
+    "basis": "产值",
+    "product_unit": "台"
+  },
+  "thresholds": {},
+  "gates": {
+    "g1": "否",
+    "g2": "否",
+    "g3": "否",
+    "g4": "否",
+    "g5": "否",
+    "g6": "否",
+    "g7": "否",
+    "g8": "否",
+    "g9": "否"
+  },
+  "basic": {
+    "b1": "是",
+    "b2": "认证",
+    "b3": "认证",
+    "b4": "建立运行",
+    "b5": "认证"
+  },
+  "energy": {
+    "grid_kwh": 18900000,
+    "pv_self_kwh": 2600000,
+    "green_trade_kwh": 0,
+    "gec_mwh": 0,
+    "natural_gas_m3": 380000,
+    "diesel_t": 45,
+    "gasoline_t": 12,
+    "carbon_method": "location"
+  },
+  "output": {
+    "value_wan": 62000,
+    "qty": 48000,
+    "value_3y_wan": 171000
+  },
+  "resources": {
+    "water_withdrawal_m3": 96000,
+    "water_reuse_m3": 1104000,
+    "material_qty": 21800,
+    "material_unit": "t",
+    "sw_generated_t": 2350,
+    "sw_utilized_t": 2256,
+    "sw_stock_utilized_t": 0
+  },
+  "pollution": {
+    "name": "VOCs",
+    "qty": 6.2,
+    "unit": "t"
+  },
+  "land": {
+    "area_m2": 66700
+  },
+  "upgrade": {
+    "invest_3y_wan": 4000
+  },
+  "ecms": {
+    "running": true,
+    "functions": [
+      "能耗查询",
+      "能源消费量和强度计算",
+      "能源消费分析与用能策略推荐",
+      "能效对标",
+      "能流分析",
+      "碳排放"
+    ]
+  },
+  "qualitative": {
+    "9": "A",
+    "12": "C",
+    "13": "B"
+  },
+  "benchmarks": {
+    "1": {
+      "lead": 0.045,
+      "base": 0.07,
+      "src": "演示值，非真实行业数据"
+    },
+    "2": {
+      "lead": 0.16,
+      "base": 0.3,
+      "src": "演示值，非真实行业数据"
+    },
+    "3": {
+      "lead": 12,
+      "base": 2,
+      "src": "演示值，非真实行业数据"
+    },
+    "6": {
+      "lead": 1.2,
+      "base": 3.0,
+      "src": "演示值，非真实行业数据"
+    },
+    "7": {
+      "lead": 90,
+      "base": 70,
+      "src": "演示值，非真实行业数据"
+    },
+    "8": {
+      "lead": 95,
+      "base": 80,
+      "src": "演示值，非真实行业数据"
+    },
+    "10": {
+      "lead": 2.5,
+      "base": 0.5,
+      "src": "演示值，非真实行业数据"
+    },
+    "14": {
+      "lead": 1.0,
+      "base": 0.5,
+      "src": "演示值，非真实行业数据"
+    }
+  }
+}

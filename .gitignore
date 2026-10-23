@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 引擎输出（跑一遍就会生成，不入库）
+result.json
+result.md
+*.r.json
+研判报告*.docx
+
+# 临时文件
+*.tmp
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 打包产物（用 Releases 分发，不入库）
+dist/
+*.skill
+*.zip
