@@ -8,6 +8,7 @@
   python gf_engine.py input.json --out result.json --md result.md
 
 只读“输入单元格”（蓝字黄底），不依赖表里公式的缓存值，所以用 WPS、Excel 保存都可以。
+百分比指标（3、7、8、10）的对标值如果是以“12%”的形式输入的（单元格是百分比格式），会自动换算成 12。
 """
 from __future__ import print_function
 
@@ -59,6 +60,7 @@ ECMS_ROWS = list(range(7, 19))  # 4定性与系统!C7:C18 对应12项功能
 ECMS_FUNCS = ["能耗查询", "能源消费量和强度计算", "能源消费分析与用能策略推荐", "能效对标",
               "能流分析", "能效平衡与优化", "用能与碳排放预算管理", "碳排放",
               "碳足迹核算", "供应链碳管理", "碳核查支撑", "碳资产管理"]
+PCT_BENCH = {"3", "7", "8", "10"}  # 这几项的对标值是百分数
 BENCH_ROWS = {"1": 5, "2": 6, "3": 7, "5": 8, "6": 9, "7": 10, "8": 11, "10": 12, "11": 13, "14": 14}  # 5对标值 C=引领 D=基准 E=来源
 NUMERIC = {"meta.eval_year"}
 YESNO_BOOL = {"meta.is_c_manufacturing", "meta.key_industry"}
@@ -71,10 +73,33 @@ def _utf8_stdout():
         pass
 
 
-def read_cells(path):
-    """返回 {工作表名: {单元格: 值}}，值为字符串或数字。"""
+def _pct_styles(z, names):
+    """返回被设成百分比格式的样式序号集合（内置格式9、10，或自定义格式里含引号外的 %）。"""
+    if "xl/styles.xml" not in names:
+        return set()
+    root = ET.fromstring(z.read("xl/styles.xml"))
+    custom = {}
+    nf = root.find("m:numFmts", NS)
+    if nf is not None:
+        for f in nf.findall("m:numFmt", NS):
+            custom[int(f.attrib["numFmtId"])] = f.attrib.get("formatCode", "")
+    out = set()
+    xfs = root.find("m:cellXfs", NS)
+    if xfs is None:
+        return out
+    for i, xf in enumerate(xfs.findall("m:xf", NS)):
+        fid = int(xf.attrib.get("numFmtId", "0"))
+        code = custom.get(fid, "")
+        if fid in (9, 10) or "%" in re.sub(r'"[^"]*"', "", code):
+            out.add(i)
+    return out
+
+
+def read_cells(path, pct_refs=None):
+    """返回 {工作表名: {单元格: 值}}，值为字符串或数字。pct_refs 传入时，会记录百分比格式的单元格（sheet!ref）。"""
     z = zipfile.ZipFile(path)
     names = z.namelist()
+    pct_style = _pct_styles(z, names)
     shared = []
     if "xl/sharedStrings.xml" in names:
         root = ET.fromstring(z.read("xl/sharedStrings.xml"))
@@ -119,6 +144,8 @@ def read_cells(path):
             if c.find("m:f", NS) is not None:
                 continue  # 公式单元格不作为输入
             cells[ref] = val
+            if pct_refs is not None and isinstance(val, (int, float)) and int(c.attrib.get("s", "0")) in pct_style:
+                pct_refs.add("{}!{}".format(name, ref))
         out[name] = cells
     return out
 
@@ -130,7 +157,8 @@ def _set(d, dotted, value):
     d[keys[-1]] = value
 
 
-def to_input(cells):
+def to_input(cells, pct_refs=None):
+    pct_refs = pct_refs or set()
     data = {"schema": "lvse-gongchang/v1"}
     for field, (sheet, ref) in CELLMAP.items():
         v = cells.get(sheet, {}).get(ref)
@@ -167,6 +195,11 @@ def to_input(cells):
     for k, row in BENCH_ROWS.items():
         c5 = cells.get(S5, {})
         lead, base, src = c5.get("C{}".format(row)), c5.get("D{}".format(row)), c5.get("E{}".format(row))
+        if k in PCT_BENCH:
+            if "{}!C{}".format(S5, row) in pct_refs and isinstance(lead, (int, float)):
+                lead = round(lead * 100, 10)
+            if "{}!D{}".format(S5, row) in pct_refs and isinstance(base, (int, float)):
+                base = round(base * 100, 10)
         if lead not in (None, "") or base not in (None, ""):
             bm[k] = {"lead": lead, "base": base, "src": src or ""}
     data["benchmarks"] = bm
@@ -179,7 +212,8 @@ def main(argv=None):
     ap.add_argument("xlsx")
     ap.add_argument("--out", default="input.json")
     a = ap.parse_args(argv)
-    data = to_input(read_cells(a.xlsx))
+    pct = set()
+    data = to_input(read_cells(a.xlsx, pct), pct)
     with io.open(a.out, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     print("input written: " + os.path.abspath(a.out))

@@ -161,7 +161,7 @@
 - 区域：华北 0.6361，东北 0.5122，华东 0.5500，华中 0.5271，西北 0.5543，南方 0.4042，西南 0.2472。
 - 省级：北京 0.5554，天津 0.6796，河北 0.6516，山西 0.6634，内蒙古 0.6479，辽宁 0.4878，吉林 0.4671，黑龙江 0.5229，上海 0.5737，江苏 0.5827，浙江 0.4974，安徽 0.6553，福建 0.4211，江西 0.5836，山东 0.6191，河南 0.5897，湖北 0.4044，湖南 0.4976，广东 0.4419，广西 0.4476，海南 0.3648，重庆 0.5581，四川 0.1564，贵州 0.5683，云南 0.1333，陕西 0.6335，甘肃 0.4471，青海 0.1796，宁夏 0.6187，新疆 0.6021。
 
-**产品碳足迹用**：2024年全国电力平均碳足迹因子 0.5777 kgCO2e/kWh（生态环境部 国家统计局 国家能源局，2025年9月公告）。
+**产品碳足迹用**：2024年全国电力平均碳足迹因子 0.5777 kgCO2e/kWh（生态环境部 国家统计局 国家能源局 公告2025年第19号）。2025年因子发布后改用新值。
 
 ## 五、能碳管理系统12项业务功能
 
@@ -183,9 +183,9 @@
 
 看完整示例：`python scripts/gf_engine.py --write-demo demo.json`
 
-- **meta**：name；province（省份简称，如“江苏”）；industry；industry_code；is_c_manufacturing（true/false）；key_industry（true/false）；target_level（市级/省级/国家级）；current_level（无/市级/省级/国家级）；eval_year；smart_factory（无/基础级/先进级/卓越级/领航级）；honors（列表）；basis（产值/产量）；basis_by（可选，按指标覆盖口径，如 {"14": "产量"}）；product_unit。
+- **meta**：name；province（省份简称，如“江苏”；写成“浙江宁波”“深圳”也能识别）；city（可选，计划单列市宁波、深圳、青岛、大连、厦门要写）；industry；industry_code；is_c_manufacturing（true/false）；key_industry（true/false）；target_level（市级/省级/国家级）；current_level（无/市级/省级/国家级）；eval_year；smart_factory（无/基础级/先进级/卓越级/领航级）；honors（列表）；basis（产值/产量）；basis_by（可选，按指标覆盖口径，如 {"14": "产量"}）；product_unit。
 - **thresholds**：市级、省级（当地分数线，留空用60/75）；national_regional_avg（本地区已有国家绿色工厂平均分，知道就填）。
-- **gates**：g1—g9，填“否/是/不确定”。g1—g8 对应第四部分的8类否决情形，g9 是其他违法违规记录（需逐条研判）。
+- **gates**：g1—g9，填“否/是/不确定”。g1—g8 对应 policy.md 第四部分的8类否决情形（“是”即不能报）；g9 是其他违法违规记录（含一般行政处罚、偷漏税），“是”判为“门槛存疑，先核实”。
 - **basic**：b1（是/部分/否：管理职责、规划和年度目标）；b2—b5（认证/建立运行/未建立：质量、环境、能源、职业健康安全管理体系）。
 - **energy**：grid_kwh（外购电网电量，含绿电交易）；pv_self_kwh；direct_green_kwh；green_trade_kwh（已含在 grid_kwh 中）；gec_mwh（单独购买的绿证）；natural_gas_m3；ng_coef；diesel_t；gasoline_t；lpg_t；fuel_oil_t；coal_t；coke_t；heat_gj；other_tce；other_renewable_tce；other_co2_t；feedstock_tce（用作原料，扣除）；exported_tce（外供，扣除）；carbon_method（location/market）；grid_factor（覆盖值）。
 - **output**：value_wan（评价年工业总产值，万元）；qty（合格产品产量）；value_3y_wan（近三年产值合计）。
@@ -193,9 +193,9 @@
 - **pollution**：name；qty；unit。
 - **land**：area_m2；capacity（按产能算土地产出率时用）。
 - **upgrade**：invest_3y_wan。
-- **ecms**：running（true/false）；functions（功能名称列表，取第五部分的名称）或 count（功能数量）。
+- **ecms**：running（true/false；不写时按“待定”处理，不会默认算0分或满分）；functions（功能名称列表，取第五部分的名称）或 count（功能数量）。
 - **qualitative**：{"9": "A/B/C", "12": "A/B/C", "13": "A/B/C"}。
-- **benchmarks**：{"指标序号": {"lead": 引领值, "base": 基准值, "src": "出处"}}，序号取 1、2、3、5、6、7、8、10、11、14。
+- **benchmarks**：{"指标序号": {"lead": 引领值, "base": 基准值, "src": "出处"}}，序号取 1、2、3、5、6、7、8、10、11、14。百分比指标（3、7、8、10）按百分数填：12%填12，不要填0.12；引擎发现对标值都≤1而实际值>1时会提醒。Excel 采集表和转换脚本能自动识别以“12%”形式输入的单元格。
 - **direct**：{"指标序号": 实际值}，直接给定实际值，覆盖引擎的计算（例如企业已按能耗限额标准算好的单位产品综合能耗）。
 - **custom_model**：重点行业专用指标表。给了它，就不用通则14项：
 

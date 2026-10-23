@@ -16,10 +16,12 @@ import argparse
 import datetime as _dt
 import io
 import json
+import math
 import os
+import re
 import sys
 
-VERSION = "1.0.0"
+VERSION = "1.2.0"
 POLICY_CHECKED = "2026-10-23"
 
 # ---------------------------------------------------------------------------
@@ -103,6 +105,13 @@ GRID_2023 = {
     "陕西": 0.6335, "甘肃": 0.4471, "青海": 0.1796, "宁夏": 0.6187, "新疆": 0.6021,
 }
 GRID_RESIDUAL_2023 = 0.6096  # 全国电力平均因子（不包括市场化交易的非化石能源电量），市场法用
+REGIONS = ("全国", "华北", "东北", "华东", "华中", "西北", "南方", "西南")
+PROVINCES = [k for k in GRID_2023 if k not in REGIONS]
+# 直辖市：“市级”绿色工厂名单就是省级名单
+MUNICIPALITIES = ("北京", "上海", "天津", "重庆")
+# 计划单列市：国家级推荐由市工信部门直接报部；前置名单以本市当年通知为准
+PLAN_CITIES = {"宁波": "浙江", "深圳": "广东", "青岛": "山东", "大连": "辽宁", "厦门": "福建"}
+ZERO_CARBON_MIN_TCE = 1000.0  # 工信厅节函〔2026〕334号：年综合能源消费量不低于1000 tce（电力按当量值）
 
 # ---------------------------------------------------------------------------
 # 三、门槛：否决项、基本要求、分数线
@@ -116,7 +125,7 @@ GATES = [
     ("g6", "被列入工业节能监察整改名单且未按要求完成整改", "veto"),
     ("g7", "近三年受到有关行政主管部门比较重大以上行政处罚", "veto"),
     ("g8", "被列为失信被执行人", "veto"),
-    ("g9", "近三年有其他安全、质量、环保违法违规记录（含一般行政处罚；部分地市还看偷漏税）", "review"),
+    ("g9", "近三年有其他安全、质量、环保违法违规记录（含一般行政处罚、偷漏税）", "review"),
 ]
 BASIC = [
     ("b1", "明确绿色制造管理层职责，有绿色低碳中长期规划和年度量化目标"),
@@ -189,15 +198,74 @@ def num(v):
 
 
 def r(v, nd=2):
-    return None if v is None else round(v, nd)
+    """四舍五入（逢五进一），与离线打分网页的 JS 引擎一致。"""
+    if v is None:
+        return None
+    p = 10 ** nd
+    x = v * p + (1e-9 if v >= 0 else -1e-9)
+    return math.floor(x + 0.5) / p
+
+
+def rsig(v, sig=6):
+    """按有效数字保留，避免小数量级指标（如污染物排放强度 0.0000474）被固定小数位截断。"""
+    if v is None or v == 0:
+        return v
+    nd = sig - int(math.floor(math.log10(abs(v)))) - 1
+    return r(v, max(nd, 0))
 
 
 def fmt(v, nd=2):
     if v is None:
         return "—"
     if abs(v) >= 1000:
-        return "{:,.{}f}".format(v, nd if abs(v) < 1e6 else 0)
-    return "{:.{}f}".format(v, nd)
+        k = nd if abs(v) < 1e6 else 0
+        return "{:,.{}f}".format(r(v, k), k)
+    return "{:.{}f}".format(r(v, nd), nd)
+
+
+def year_of(v):
+    """从 2025、"2025"、"2025年"、"2025年度" 里取出年份；取不到返回 None。"""
+    if v is None or isinstance(v, bool):
+        return None
+    if isinstance(v, (int, float)):
+        return int(v)
+    m = re.search(r"(19|20)\d{2}", str(v))
+    return int(m.group(0)) if m else None
+
+
+def norm_place(meta):
+    """返回 (省份简称或 None, 计划单列市或 None)。支持“浙江”“浙江省宁波市”“宁波”“深圳”等写法。"""
+    raw = "{}{}".format(meta.get("province") or "", meta.get("city") or "")
+    s = raw
+    for t in ("省", "市", "自治区", "壮族", "回族", "维吾尔", "特别行政区"):
+        s = s.replace(t, "")
+    s = s.strip()
+    city = next((c for c in PLAN_CITIES if c in s), None)
+    if s in PROVINCES:
+        return s, city
+    prov = next((p for p in PROVINCES if s.startswith(p)), None)
+    if prov is None and city:
+        prov = PLAN_CITIES[city]
+    if prov is None:
+        prov = next((p for p in PROVINCES if p in s), None)
+    return prov, city
+
+
+def effective_levels(meta):
+    """直辖市的“市级”名单相当于省级名单：统一按省级处理。返回 (当前层级, 目标层级, 说明或 None)。"""
+    prov, _ = norm_place(meta)
+    cur = meta.get("current_level") or "无"
+    tgt = meta.get("target_level") or "省级"
+    note = None
+    if prov in MUNICIPALITIES and ("市级" in (cur, tgt)):
+        if cur == "市级":
+            cur = "省级"
+        if tgt == "市级":
+            tgt = "省级"
+        note = "{}是直辖市：市级绿色工厂名单相当于省级名单，本次按省级口径研判。".format(prov)
+        if prov == "北京":
+            note += "北京2026年国家级推荐还接受当年同时申报市级绿色工厂的单位。"
+    return cur, tgt, note
 
 
 def fmt_auto(v):
@@ -218,15 +286,6 @@ def fmt_auto(v):
     import math
     nd = int(-math.floor(math.log10(a))) + 2
     return "{:.{}f}".format(v, nd)
-
-
-def rsig(v, sig=6):
-    """按有效数字保留，避免小数量级指标（如污染物排放强度 0.0000474）被固定小数位截断。"""
-    if v is None or v == 0:
-        return v
-    import math
-    nd = sig - int(math.floor(math.log10(abs(v)))) - 1
-    return round(v, max(nd, 0))
 
 
 def g(d, *keys):
@@ -284,7 +343,7 @@ def compute_energy(data, warnings):
 
     # 碳排放
     method = (e.get("carbon_method") or "location").lower()
-    prov = (meta.get("province") or "").replace("省", "").replace("市", "").replace("自治区", "").replace("壮族", "").replace("回族", "").replace("维吾尔", "")
+    prov, _city = norm_place(meta)
     override = num(e.get("grid_factor"))
     if override is not None:
         factor, factor_src = override, "用户指定"
@@ -294,6 +353,8 @@ def compute_energy(data, warnings):
         factor, factor_src = GRID_2023[prov], "{}省级电力平均因子，2023年（公告2025年第47号）".format(prov)
     else:
         factor, factor_src = GRID_2023["全国"], "全国电力平均因子 0.5306，2023年（公告2025年第47号）"
+        if grid > 0:
+            warnings.append("没有识别出省份（填的是“{}”），外购电排放按全国平均因子0.5306计算；请填省份简称，如“浙江”，以便取省级因子。".format(meta.get("province") or "空"))
     if method == "market":
         grid_emitting_kwh = max(grid - claim_grid_green, 0.0)
     else:
@@ -369,13 +430,16 @@ def compute_actuals(data, en, warnings):
     running = ecms.get("running")
     if running is True or str(running) in ("是", "true", "True", "1"):
         acts["4"] = (float(min(n_funcs, 12)), "项", "已建成运行，具备{}项业务功能".format(n_funcs))
-    elif running is None and not funcs:
-        acts["4"] = (None, "项", "未说明是否建成能碳管理系统")
+    elif running is None or str(running).strip() in ("", "不确定", "不清楚"):
+        if funcs:
+            acts["4"] = (None, "项", "列了{}项功能，但没说明系统是否已建成运行（建成运行才计分）".format(n_funcs))
+        else:
+            acts["4"] = (None, "项", "未说明是否建成能碳管理系统")
     else:
         acts["4"] = (0.0, "项", "系统未建成运行，按0项计（功能再多也不计分）")
     mat = num(res.get("material_qty"))
     v, u, dn = per_basis(mat, "5", res.get("material_unit") or "原材料单位")
-    acts["5"] = (v, u, "主要原材料{} ÷ {}".format(fmt(mat), dn))
+    acts["5"] = (v, u, "主要原材料{} {} ÷ {}".format(fmt(mat), res.get("material_unit") or "", dn))
     wv = num(res.get("water_withdrawal_m3"))
     v, u, dn = per_basis(wv, "6", "m³")
     acts["6"] = (v, u, "取水量{} m³ ÷ {}".format(fmt(wv), dn))
@@ -403,7 +467,7 @@ def compute_actuals(data, en, warnings):
         acts["10"] = (None, "%", "缺近三年改造投资额或三年总产值")
     pq = num(pol.get("qty"))
     v, u, dn = per_basis(pq, "11", pol.get("unit") or "污染物单位")
-    acts["11"] = (v, u, "{}{} ÷ {}".format(pol.get("name") or "主要污染物", fmt(pq), dn))
+    acts["11"] = (v, u, "{} {} {} ÷ {}".format(pol.get("name") or "主要污染物", fmt(pq), pol.get("unit") or "", dn))
     acts["12"] = (None, "", "定性项")
     acts["13"] = (None, "", "定性项")
     area = num(land.get("area_m2"))
@@ -448,6 +512,15 @@ def frac(actual, lead, base, kind):
     return (actual - base) / (lead - base)
 
 
+def _pct_check(i, name, unit, actual, lead, base, warnings):
+    """百分比指标的对标值被写成小数（如把12%写成0.12）会让这一项虚高，提醒核对。"""
+    if unit != "%" or actual is None or lead is None or base is None:
+        return
+    if max(abs(lead), abs(base)) <= 1.0 and actual > 1.0:
+        warnings.append("指标{}【{}】的引领值、基准值是{}、{}，而实际值是{}%：如果对标值本意是百分数（如12%），"
+                        "请填12，不要填0.12，否则这一项会虚高。".format(i, name, fmt_auto(lead), fmt_auto(base), fmt(actual, 1)))
+
+
 def score_custom(cm, warnings):
     """重点行业：按平台“行业评价要求”逐项给出的指标表打分。"""
     alias = {"逆向": "rev", "reverse": "rev", "正向": "pos", "positive": "pos", "定性": "qual", "qualitative": "qual"}
@@ -471,6 +544,7 @@ def score_custom(cm, warnings):
             continue
         a, lead, base = num(it.get("actual")), num(it.get("lead")), num(it.get("base"))
         row.update({"actual": a, "lead": lead, "base": base})
+        _pct_check(i, row["name"], (row["unit"] or "").strip(), a, lead, base, warnings)
         if a is None:
             row["status"], row["note"] = "no_data", "缺数据：实际值"
         elif lead is None or base is None:
@@ -528,6 +602,7 @@ def score_all(data, acts, warnings):
                     warnings.append("指标{}【{}】的引领值和基准值方向填反了，已按“{}”自动对调，请核对来源。".format(
                         i, m["name"], "越低越好" if m["kind"] == "rev" else "越高越好"))
         row["lead"], row["base"], row["src"] = lead, base, src
+        _pct_check(i, m["name"], unit, actual, lead, base, warnings)
         if actual is None:
             row["status"] = "no_data"
             row["note"] = "缺数据：" + calc
@@ -568,14 +643,14 @@ def summarize(rows):
 def check_gates(data):
     gin = data.get("gates") or {}
     items, worst = [], "ok"
-    veto_from = None
-    order = {"ok": 0, "warn": 1, "veto": 2}
+    veto_from = None  # 记录否决来自“否决情形”还是“基本要求”，两者的话术不同
+    order = {"ok": 0, "warn": 1, "risk": 2, "veto": 3}
     for key, label, kind in GATES:
-        v = (gin.get(key) or "不确定").strip()
-        if v in ("否", "无", "没有", "no", "No", "false"):
+        v = (str(gin.get(key)) if gin.get(key) is not None else "不确定").strip()
+        if v in ("否", "无", "没有", "no", "No", "false", "False"):
             lvl = "ok"
-        elif v in ("是", "有", "yes", "Yes", "true"):
-            lvl = "veto" if kind == "veto" else "warn"
+        elif v in ("是", "有", "yes", "Yes", "true", "True"):
+            lvl = "veto" if kind == "veto" else "risk"
         else:
             lvl = "warn"
             v = "不确定"
@@ -611,32 +686,45 @@ def check_gates(data):
 # ---------------------------------------------------------------------------
 # 层级判定
 # ---------------------------------------------------------------------------
+RISK_TEXT = ("近三年有违法违规记录：GB/T 36132—2025 第4.2条a)要求近三年未发生安全、质量、环保等违法违规行为，"
+             "安徽等地的省级通知把“违法违规行为”直接列为不得申报。先向当地工信部门确认能否申报，再决定是否投入准备")
+
+
 def tier_verdicts(data, total, gates):
     meta = data.get("meta") or {}
     key = bool(meta.get("key_industry"))
     th_in = data.get("thresholds") or {}
     out = []
-    cur0 = meta.get("current_level") or "无"
+    cur, _tgt, _note = effective_levels(meta)
+    prov, city = norm_place(meta)
     tiers_needed = []
-    if cur0 == "无":
+    if cur == "无" and prov not in MUNICIPALITIES:  # 直辖市没有地市一级，直接看市级（=省级）名单
         tiers_needed.append("市级")
-    if cur0 in ("无", "市级"):
+    if cur in ("无", "市级"):
         tiers_needed.append("省级")
     for tier in tiers_needed:
         t = num(th_in.get(tier))
-        src = "用户指定（来自当地通知）" if t is not None else DEFAULT_THRESHOLDS[tier]["src"]
-        if t is None:
+        default = t is None
+        src = "用户指定（来自当地通知）" if not default else DEFAULT_THRESHOLDS[tier]["src"]
+        if default:
             t = DEFAULT_THRESHOLDS[tier]["key" if key else "nonkey"]
-        out.append(_verdict(tier, t, src, total, gates))
+        v = _verdict(tier, t, src, total, gates)
+        v["default_threshold"] = default
+        if default and v["verdict"] != "不具备申报条件":
+            v["detail"] += "；分数线{}分是缺省值（参照安徽2026年口径），以当地通知为准".format(fmt(t, 0))
+        out.append(v)
     # 国家级：前置条件 + 相对门槛
-    cur = meta.get("current_level") or "无"
-    pre = []
+    pre, soft = [], []
     if meta.get("is_c_manufacturing") is False:
         pre.append("不属于《国民经济行业分类》C类制造业，不能申报国家绿色工厂")
     if cur not in ("省级", "国家级"):
-        pre.append("2026年起国家绿色工厂须先列入省级绿色工厂名单（当前：{}）".format(cur))
+        if city and cur == "市级":
+            soft.append("{}是计划单列市，国家级推荐由市工信部门直接报部，前置名单以本市当年通知为准"
+                        "（例：深圳2026年要求已列入深圳市绿色工厂名单）".format(city))
+        else:
+            pre.append("国家级推荐要求已列入本地区省级绿色工厂名单（当前：{}）".format(cur))
     avg = num(th_in.get("national_regional_avg"))
-    nat = {"tier": "国家级", "threshold": avg, "prereq": pre,
+    nat = {"tier": "国家级", "threshold": avg, "prereq": pre, "soft_prereq": soft,
            "src": "国家级没有固定分数线：要求“行业领先”且优于本地区已有绿色工厂平均水平；平均水平需向当地工信部门了解"}
     if cur == "国家级":
         nat["verdict"] = "已是国家级，看动态管理"
@@ -647,12 +735,17 @@ def tier_verdicts(data, total, gates):
     elif pre:
         nat["verdict"] = "当年不能报"
         nat["detail"] = "；".join(pre)
+    elif gates["status"] == "risk":
+        nat["verdict"] = "门槛存疑，先核实"
+        nat["detail"] = RISK_TEXT
     elif avg is not None:
         v = _verdict("国家级", avg, "本地区已有绿色工厂平均水平（用户提供）", total, gates)
         nat.update({k: v[k] for k in ("verdict", "detail", "gap")})
     else:
         nat["verdict"] = "需对比本地区平均水平"
         nat["detail"] = "确定分{}，上限{}。没有本地区平均分时无法下结论；一般需要明显高于省级线".format(fmt(total["certain"], 1), fmt(total["upper"], 1))
+    if soft and nat["verdict"] not in ("不具备申报条件", "已是国家级，看动态管理"):
+        nat["detail"] += "；" + "；".join(soft)
     out.append(nat)
     return out
 
@@ -664,7 +757,8 @@ def _verdict(tier, t, src, total, gates):
         d["verdict"] = "不具备申报条件"
         d["detail"] = "存在否决项或基本要求不满足，分数再高也不能报"
         d["gap"] = None
-    elif c >= t - 1e-9:
+        return d
+    if c >= t - 1e-9:
         d["verdict"] = "确定分已过线"
         d["detail"] = "确定分{}，高出分数线{}分".format(fmt(c, 1), fmt(c - t, 1))
         d["gap"] = 0.0
@@ -678,9 +772,13 @@ def _verdict(tier, t, src, total, gates):
         d["gap"] = t - c
     else:
         d["verdict"] = "目前达不到"
-        d["detail"] = "待定项全拿满也只有{}分，比分数线低{}分，需要先做改造提分".format(fmt(u, 1), fmt(t - u, 1))
+        d["detail"] = "待定项全拿满也只有{}分，比分数线低{}分，需要先提分（见过线路径）".format(fmt(u, 1), fmt(t - u, 1))
         d["gap"] = t - c
-    if gates["status"] == "warn" and d["verdict"] != "不具备申报条件":
+    if gates["status"] == "risk":
+        d["score_verdict"] = d["verdict"]
+        d["verdict"] = "门槛存疑，先核实"
+        d["detail"] = RISK_TEXT + "。按分数看：" + d["score_verdict"] + "，" + d["detail"]
+    elif gates["status"] == "warn":
         d["detail"] += "；另有门槛项待核实"
     return d
 
@@ -802,8 +900,14 @@ def path_to_pass(res_total, tiers, gaps):
         steps.append({"id": a["id"], "name": a["name"], "gain": a["gain"], "timing": a["timing"],
                       "after": r(res_total["certain"] + acc, 1)})
     pending = [a for a in gaps if a["timing"] == "info"]
+    enough = acc >= need - 1e-9
+    margin = acc - need if enough else None
+    margin_note = ""
+    if enough and margin < 3.0:
+        margin_note = ("做完只比分数线高{}分。定性项按三档估计、对标值也有不确定性，"
+                       "实际申报建议留出3分以上余量，可再做提分清单里的下一项").format(fmt(margin, 1))
     return {"tier": target["tier"], "threshold": target["threshold"], "need": r(need, 1), "steps": steps,
-            "enough": acc >= need - 1e-9,
+            "enough": enough, "margin": r(margin, 1) if margin is not None else None, "margin_note": margin_note,
             "pending_note": ("另有{}项缺数据或缺对标值（最多{}分），补齐后可能直接改变结论".format(
                 len(pending), fmt(sum(a["gain"] for a in pending), 0)) if pending else "")}
 
@@ -815,21 +919,20 @@ def quality_checks(data, en, warnings):
     meta = data.get("meta") or {}
     out = data.get("output") or {}
     b = meta.get("basis") or "产值"
-    # 用行业评价指标表（custom_model）时，分母由指标表自己规定，与产值/产量无关
-    if not data.get("custom_model"):
-        if b == "产值" and not num(out.get("value_wan")):
-            warnings.append("强度类指标按产值计算，但没有工业总产值（万元，现价）。注意用统计报表的工业总产值，不要用营业收入代替。")
-        if b == "产量" and not num(out.get("qty")):
-            warnings.append("强度类指标按产量计算，但没有合格产品产量。多产品时要折标准产品或按产量分摊，并与对标值口径一致。")
+    custom = bool(data.get("custom_model"))
+    if not custom and b == "产值" and not num(out.get("value_wan")):
+        warnings.append("强度类指标按产值计算，但没有工业总产值（万元，现价）。注意用统计报表的工业总产值，不要用营业收入代替。")
+    if not custom and b == "产量" and not num(out.get("qty")):
+        warnings.append("强度类指标按产量计算，但没有合格产品产量。多产品时要折标准产品或按产量分摊，并与对标值口径一致。")
     if en.get("has_energy") and not num((data.get("energy") or {}).get("feedstock_tce")):
         warnings.append("综合能耗不含用作原料的能源（如化工原料用气、用煤）；如有，请填 feedstock_tce 扣除。")
     if num((data.get("resources") or {}).get("water_withdrawal_m3")):
         warnings.append("取水量只算主要、辅助、附属生产系统，不含基建改造、消防和外供水量；重复利用率分母是“取水量+重复利用水量”。")
     if num(g(data, "land", "area_m2")):
         warnings.append("用地面积按土地权属和界址（不动产权证）确定；租赁厂房按实际使用且权属清楚的面积，口径要前后一致。")
-    ey = meta.get("eval_year")
+    ey = year_of(meta.get("eval_year"))
     if ey:
-        warnings.append("评价年为{}年：强度、比率类指标都用该自然年数据；近三年改造投资取{}—{}年。".format(ey, int(ey) - 2, ey))
+        warnings.append("评价年为{}年：强度、比率类指标都用该自然年数据；近三年改造投资取{}—{}年。".format(ey, ey - 2, ey))
 
 
 # ---------------------------------------------------------------------------
@@ -837,8 +940,7 @@ def quality_checks(data, en, warnings):
 # ---------------------------------------------------------------------------
 def timeline(data, today):
     meta = data.get("meta") or {}
-    target = meta.get("target_level") or "省级"
-    cur = meta.get("current_level") or "无"
+    cur, target, _n = effective_levels(meta)
     y = today.year
     res = {"today": today.isoformat(), "target": target, "windows": [], "notes": []}
 
@@ -867,16 +969,17 @@ def timeline(data, today):
         w["state"] = "本年度窗口已过，按下一年度准备"
         return w
 
+    muni = norm_place(meta)[0] in MUNICIPALITIES
     path = []
     if target == "国家级":
         if cur in ("省级", "国家级"):
             path = ["国家级"]
-        elif cur == "市级":
+        elif cur == "市级" or muni:
             path = ["省级", "国家级"]
         else:
             path = ["市级", "省级", "国家级"]
     elif target == "省级":
-        path = ["省级"] if cur in ("市级", "省级", "国家级") else ["市级", "省级"]
+        path = ["省级"] if (cur in ("市级", "省级", "国家级") or muni) else ["市级", "省级"]
     else:
         path = ["市级"]
     prev_year = None
@@ -898,11 +1001,7 @@ def timeline(data, today):
             res["notes"].append("下一个窗口用{}年数据，{}年还剩{}天：绿证/绿电要对应当年用电，固废利用、回用水要在年内落实，才能体现在评价年数据里。".format(dy, dy, left))
         else:
             res["notes"].append("下一个窗口用{}年数据，该年已结束，定量指标基本定型；现在能做的是补对标值、定性项和能碳系统，以及为下一轮改善当年数据。".format(dy))
-        ey = meta.get("eval_year")
-        try:
-            ey = int(ey) if ey else None
-        except (TypeError, ValueError):
-            ey = None
+        ey = year_of(meta.get("eval_year"))
         if ey and ey != dy:
             res["notes"].append("注意：你提供的是{}年数据，而下一个窗口按{}年数据评价。本次结论只作参照，{}年全年数据出来后要重算。".format(ey, dy, dy))
         start = _dt.date.fromisoformat(first["start"]) if hasattr(_dt.date, "fromisoformat") else today
@@ -946,17 +1045,45 @@ def evaluate(data, today=None):
         "engine": "lvse-gongchang/gf_engine " + VERSION, "policy_checked": POLICY_CHECKED,
         "generated": today.isoformat(), "meta": meta,
         "gates": gates, "energy": {k: (r(v, 4) if isinstance(v, float) else v) for k, v in en.items()},
-        "indicators": [dict(x, score=r(x["score"], 2), actual=rsig(x["actual"], 6)) for x in rows],
+        "indicators": [dict(x, score=r(x["score"], 2), actual=rsig(x["actual"])) for x in rows],
         "categories": cats,
         "total": {"certain": r(total["certain"], 1), "upper": r(total["upper"], 1), "pending_weight": r(total["pending_weight"], 1)},
         "tiers": tiers, "gaps": gaps, "warnings": warnings, "priority": pri,
         "path": path_to_pass(total, tiers, gaps),
         "timeline": timeline(data, today),
     }
-    if (meta.get("current_level") or "") == "国家级":
+    cur_eff, _t, lvl_note = effective_levels(meta)
+    notes = []
+    if lvl_note:
+        notes.append(lvl_note)
+    _p, city = norm_place(meta)
+    if city:
+        notes.append("{}是计划单列市：国家级推荐由{}工信部门直接报部，前置名单、截止时间以本市当年通知为准。".format(city, city))
+    result["notes"] = notes
+    if cur_eff == "国家级":
         result["dynamic"] = ("已是国家绿色工厂：每年要对照新评价要求填报动态管理表；"
-                             "得分连续三年处于后5%的会被移出，达不到新评价要求的会被适时移出。")
+                             "得分连续三年处于后5%的会被移出（2025年度名单公布时移出了132家），达不到新评价要求的会被适时移出。")
+        result["zero_carbon"] = zero_carbon_check(en, meta)
     return result
+
+
+def zero_carbon_check(en, meta):
+    """国家级零碳工厂（工信厅节函〔2026〕334号）的硬门槛里，本工具能核对的两条；其余列为自查项。"""
+    tce = en.get("total_tce")
+    items = [{"item": "已入选国家绿色工厂名单", "status": "ok", "value": "是"}]
+    if tce is None:
+        items.append({"item": "年综合能源消费量不低于1000吨标准煤（电力按当量值）", "status": "unknown", "value": "缺能源数据"})
+    else:
+        items.append({"item": "年综合能源消费量不低于1000吨标准煤（电力按当量值）",
+                      "status": "ok" if tce >= ZERO_CARBON_MIN_TCE else "fail", "value": "{} tce".format(fmt(tce, 0))})
+    self_check = [
+        "规模以上工业企业、独立法人或视同法人的独立核算单位",
+        "主要产品单位能耗达到能耗限额强制性国家标准1级和《工业重点领域能效标杆水平和基准水平》标杆水平（无标准的达到行业领先）",
+        "核心指标基本要求：单位能耗碳排放≤1.8 tCO2/tce；非化石能源消费占比≥30%；非化石能源电力消费物理认定量占比≥10%（年用电500万kWh以上适用），口径以334号附件1为准",
+        "近三年无较大及以上事故、比较重大以上行政处罚、失信等情形；建立碳排放核算体系",
+    ]
+    return {"basis": "工信厅节函〔2026〕334号（2026年度申报已于8月15日前由省级报部，下一轮以通知为准）",
+            "checks": items, "self_check": self_check}
 
 
 STATUS_CN = {"full": "满分", "partial": "部分得分", "zero": "零分", "no_data": "缺数据",
@@ -973,10 +1100,12 @@ def render_md(res):
         m.get("target_level") or "—", m.get("current_level") or "无", m.get("eval_year") or "—"))
     t = res["total"]
     L.append("- 分数账本：确定分 **{}**，待定 {} 分，上限 {}".format(fmt(t["certain"], 1), fmt(t["pending_weight"], 0), fmt(t["upper"], 1)))
-    gs = {"ok": "通过", "warn": "有待核实项", "veto": "存在否决项"}[res["gates"]["status"]]
+    gs = {"ok": "通过", "warn": "有待核实项", "risk": "门槛存疑（近三年有违法违规记录）", "veto": "存在否决项"}[res["gates"]["status"]]
     if res["gates"]["status"] == "veto" and res["gates"].get("veto_from") == "basic":
         gs = "基本要求不满足"
     L.append("- 门槛：{}".format(gs))
+    for n in res.get("notes") or []:
+        L.append("- 说明：" + n)
     L.append("")
     L.append("## 各层级判断")
     for v in res["tiers"]:
@@ -1003,6 +1132,8 @@ def render_md(res):
                      "申报前完成即可" if st["timing"] == "status" else "须改善评价年数据"))
         if not p["enough"]:
             L.append("- 以上全部做到仍不够，需要更长周期的改造")
+        if p.get("margin_note"):
+            L.append("- " + p["margin_note"])
         if p["pending_note"]:
             L.append("- " + p["pending_note"])
         L.append("")
@@ -1031,6 +1162,15 @@ def render_md(res):
     if res.get("dynamic"):
         L.append("")
         L.append(res["dynamic"])
+    zc = res.get("zero_carbon")
+    if zc:
+        L.append("")
+        L.append("## 零碳工厂门槛速查（{}）".format(zc["basis"]))
+        for c in zc["checks"]:
+            mark = {"ok": "满足", "fail": "不满足", "unknown": "待定"}[c["status"]]
+            L.append("- {}：{}（{}）".format(c["item"], mark, c["value"]))
+        for t in zc["self_check"]:
+            L.append("- 需自查：" + t)
     L.append("")
     L.append("> 本结果按 GB/T 36132—2025 和工信部年度评价要求推算，定性项按经验三档估计，不是官方评审结论；政策核对日期 {}。".format(res["policy_checked"]))
     return "\n".join(L)

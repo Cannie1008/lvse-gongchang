@@ -32,7 +32,7 @@ except Exception:  # 兜底：单独拷走本文件也能用
 GREEN = "2F5D46"
 TINT = "E9F0EB"
 LINE = "BFCDC3"
-COLORS = {"ok": "2E7D4F", "warn": "B7791F", "veto": "B23A2E", "muted": "6B7A71"}
+COLORS = {"ok": "2E7D4F", "warn": "B7791F", "risk": "B23A2E", "veto": "B23A2E", "muted": "6B7A71"}
 
 
 def x(s):
@@ -172,7 +172,7 @@ class Doc(object):
         core = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
                 '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" '
                 'xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" '
-                'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>{}</dc:title><dc:creator>绿色工厂研判助手</dc:creator>'
+                'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>{}</dc:title><dc:creator>绿色工厂研判助手</dc:creator><dc:description>AI辅助生成：由智能体技能“绿色工厂研判助手”按规则计算生成，须人工核对</dc:description><cp:keywords>AI辅助生成</cp:keywords>'
                 '<dcterms:created xsi:type="dcterms:W3CDTF">{}</dcterms:created></cp:coreProperties>').format(x(title), now)
         app = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
                '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties">'
@@ -212,7 +212,8 @@ STYLES = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
           '<w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style>'
           '</w:styles>')
 
-GATE_CN = {"ok": "通过", "warn": "待核实", "veto": "否决", "ok_weak": "满足（未认证）"}
+GATE_CN = {"ok": "通过", "warn": "待核实", "risk": "存疑", "veto": "否决", "ok_weak": "满足（未认证）"}
+GATE_STATUS_CN = {"ok": "通过", "warn": "有待核实项", "risk": "门槛存疑（近三年有违法违规记录）", "veto": "存在否决项"}
 TIMING_CN = {"year": "须在评价年内落实", "status": "申报前完成即可", "info": "补资料即可"}
 
 EVIDENCE = {
@@ -233,6 +234,28 @@ EVIDENCE = {
 }
 
 
+EVIDENCE_KEYWORDS = [
+    (("碳足迹",), "13"), (("绿色设计", "生态设计"), "12"), (("工艺", "设备先进", "装备"), "9"),
+    (("能碳", "能源管理系统", "管理系统", "管理中心"), "4"), (("可再生", "绿电", "非化石"), "3"),
+    (("碳排放", "二氧化碳"), "2"), (("能耗", "能源消耗", "标准煤", "煤耗", "电耗"), "1"),
+    (("重复利用", "循环水", "回用"), "7"), (("取水", "用水", "水耗"), "6"),
+    (("固废", "固体废物", "废渣"), "8"), (("投资",), "10"),
+    (("COD", "化学需氧量", "氨氮", "颗粒物", "VOCs", "二氧化硫", "氮氧化物", "污染物", "排放强度"), "11"),
+    (("土地", "用地", "亩均", "容积率"), "14"), (("原材料", "材料消耗", "原料"), "5"),
+]
+
+
+def evidence_for(it):
+    """通则14项按序号取佐证；重点行业的自定义指标按名称匹配，匹配不上给通用说法，避免张冠李戴。"""
+    if not it.get("custom"):
+        return EVIDENCE.get(it["id"], "")
+    name = it.get("name") or ""
+    for keys, eid in EVIDENCE_KEYWORDS:
+        if any(k in name for k in keys):
+            return EVIDENCE[eid]
+    return "该指标的计量记录、统计台账和计算过程；对标值来源（平台行业评价要求）"
+
+
 def build(res, org=None, contact=None):
     m = res.get("meta") or {}
     d = Doc()
@@ -248,13 +271,14 @@ def build(res, org=None, contact=None):
         who += "　联系：{}".format(contact)
     d.para([d.run("{}　生成日期：{}　政策核对至：{}".format(who, res.get("generated"), res.get("policy_checked")),
                   color=COLORS["muted"], size=9)], after=200)
+    d.para([d.run("本文件由AI智能体技能“绿色工厂研判助手”按规则计算生成（AI辅助生成），须经人工核对后使用；转发时请保留本说明。", color=COLORS["muted"], size=9)], after=80)
 
     # 一、结论
     d.h1("一、结论")
     t = res["total"]
     gst = res["gates"]["status"]
-    gst_cn = {"ok": "通过", "warn": "有待核实项", "veto": "存在否决项"}[gst]
-    if gst == "veto" and res["gates"].get("veto_from") == "basic":
+    gst_cn = GATE_STATUS_CN.get(gst, gst)
+    if gst == "veto" and (res["gates"].get("veto_from") == "basic"):
         gst_cn = "基本要求不满足"
     lines = []
     for v in res["tiers"]:
@@ -266,6 +290,8 @@ def build(res, org=None, contact=None):
            shade=TINT, before=60, after=60)
     for ln in lines:
         d.para([d.run(ln)], indent=0)
+    for n in res.get("notes") or []:
+        d.para([d.run("说明：" + n, color=COLORS["muted"])])
     p = res.get("path")
     if p and p.get("steps"):
         d.h2("过{}线的最短路径（差{}分）".format(p["tier"], f1(p["need"])))
@@ -274,12 +300,26 @@ def build(res, org=None, contact=None):
         d.table(["措施对应指标", "加分", "累计", "时效"], rows, [46, 12, 12, 30], align=[None, "center", "center", None])
         if not p.get("enough"):
             d.para([d.run("以上措施全部做到仍不够，需要更长周期的改造。", color=COLORS["warn"])])
+        if p.get("margin_note"):
+            d.para([d.run(p["margin_note"], color=COLORS["warn"])])
         if p.get("pending_note"):
             d.para([d.run(p["pending_note"], color=COLORS["muted"])])
     if res.get("priority"):
         d.para([d.run("优先推荐因素：", bold=True), d.run("、".join(res["priority"]))])
     if res.get("dynamic"):
         d.para([d.run(res["dynamic"], color=COLORS["warn"])])
+    zc = res.get("zero_carbon")
+    if zc:
+        d.h2("零碳工厂门槛速查")
+        rows, cols = [], []
+        for c in zc["checks"]:
+            rows.append([c["item"], c["value"], {"ok": "满足", "fail": "不满足", "unknown": "待定"}[c["status"]]])
+            cols.append([None, None, {"ok": "ok", "fail": "veto", "unknown": "warn"}[c["status"]]])
+        for sc_item in zc["self_check"]:
+            rows.append([sc_item, "—", "需自查"])
+            cols.append([None, None, "warn"])
+        d.table(["条件", "企业情况", "判定"], rows, [64, 18, 18], colors=cols, align=[None, "center", "center"])
+        d.para([d.run("依据：" + zc["basis"], size=9, color=COLORS["muted"])])
 
     # 二、门槛
     d.h1("二、门槛核查")
@@ -364,14 +404,16 @@ def build(res, org=None, contact=None):
             continue
         seen.add(i)
         nm = next((it["name"] for it in res["indicators"] if it["id"] == i), "")
-        rows.append(["指标{} {}".format(i, nm), EVIDENCE.get(i, "")])
+        it0 = next((it for it in res["indicators"] if it["id"] == i), {"id": i})
+        rows.append(["指标{} {}".format(i, nm), evidence_for(it0)])
     rows.sort(key=lambda r: (0, int(r[0].split()[0][2:])) if r[0].split()[0][2:].isdigit() else (1, r[0]))
     rows.insert(0, ["门槛与基本要求", "营业执照；近三年信用记录截图（信用中国、国家企业信用信息公示系统）；四体系证书或运行记录；绿色低碳中长期规划和年度目标文件；排污许可证"])
     d.table(["对应项", "材料"], rows, [24, 76])
 
     # 八、说明
     d.h1("八、说明")
-    for s in ["本报告依据 GB/T 36132—2025《绿色工厂评价通则》、工信部年度绿色工厂评价要求及公开政策推算，不是主管部门的评审结论。",
+    for s in ["本报告由AI智能体技能“绿色工厂研判助手”按规则计算生成（AI辅助生成），须经人工核对后使用；转发时请保留本说明。",
+              "本报告依据 GB/T 36132—2025《绿色工厂评价通则》、工信部年度绿色工厂评价要求及公开政策推算，不是第三方评价报告，也不是主管部门的评审结论。",
               "重点行业以管理平台上的行业评价要求为准，其指标、对标值可能与通则不同。",
               "对标值决定得分，来源须可追溯；没有可靠来源的指标宁可标为待定，也不要估一个数凑分。",
               "申报数据必须真实。发现数据或材料造假的，会被移出名单，并三年内不得再次申报。"]:

@@ -116,7 +116,7 @@ footer p{max-width:90ch}
 <div class="mini" aria-hidden="true"><span>确定分 <b id="m-c">—</b></span><span>上限 <span id="m-u">—</span></span><span id="m-v"></span></div>
 <header class="top">
   <h1>绿色工厂自评打分器</h1>
-  <p class="lede">按 GB/T 36132—2025 和工信部年度评价要求的14项指标打分，看确定分、待定分、离分数线差多少，以及先做哪几件事最快过线。数据只保存在这台电脑的浏览器里，不联网。</p>
+  <p class="lede">按 GB/T 36132—2025 和工信部年度评价要求的14项指标打分，看确定分、待定分、离分数线差多少，以及先做哪几件事最快过线。数据只保存在这台电脑的浏览器里，不联网；公用电脑用完请点“清空”。</p>
   <div class="actions">
     <button type="button" class="primary" id="b-demo">载入示例</button>
     <button type="button" id="b-clear">清空</button>
@@ -132,7 +132,7 @@ footer p{max-width:90ch}
   <aside class="ledger" id="ledger" aria-live="polite"></aside>
 </main>
 <footer>
-  <p>按 GB/T 36132—2025《绿色工厂评价通则》和工信部年度《绿色工厂评价要求》推算；定性项（指标9、12、13）按满分、半分、零分估计；重点行业以管理平台上的行业评价要求为准。结果不是官方评审结论。政策核对至 2026-10-23。导出的 JSON 可以交给“绿色工厂研判”技能生成 Word 研判报告。</p>
+  <p>按 GB/T 36132—2025《绿色工厂评价通则》和工信部年度《绿色工厂评价要求》推算；定性项（指标9、12、13）按满分、半分、零分估计；重点行业以管理平台上的行业评价要求为准。结果不是官方评审结论。政策核对至 2026-10-23（v1.1.1）。导出的 JSON 可以交给“绿色工厂研判”技能生成 Word 研判报告。</p>
 </footer>
 <script>/* 绿色工厂研判引擎（JS 版，与 scripts/gf_engine.py 对应） */
 (function (root) {
@@ -165,6 +165,31 @@ footer p{max-width:90ch}
   var FUEL_EF = { ng_m3: [389.31, 15.32, 0.99, 1e4], diesel_t: [42.652, 20.20, 0.98, 1], gasoline_t: [43.070, 18.90, 0.98, 1], lpg_t: [50.179, 17.20, 0.98, 1], fuel_oil_t: [41.816, 21.10, 0.98, 1], coal_t: [20.908, 26.37, 0.94, 1], coke_t: [28.435, 29.50, 0.93, 1] };
   var GRID = { "全国": 0.5306, "华北": 0.6361, "东北": 0.5122, "华东": 0.5500, "华中": 0.5271, "西北": 0.5543, "南方": 0.4042, "西南": 0.2472, "北京": 0.5554, "天津": 0.6796, "河北": 0.6516, "山西": 0.6634, "内蒙古": 0.6479, "辽宁": 0.4878, "吉林": 0.4671, "黑龙江": 0.5229, "上海": 0.5737, "江苏": 0.5827, "浙江": 0.4974, "安徽": 0.6553, "福建": 0.4211, "江西": 0.5836, "山东": 0.6191, "河南": 0.5897, "湖北": 0.4044, "湖南": 0.4976, "广东": 0.4419, "广西": 0.4476, "海南": 0.3648, "重庆": 0.5581, "四川": 0.1564, "贵州": 0.5683, "云南": 0.1333, "陕西": 0.6335, "甘肃": 0.4471, "青海": 0.1796, "宁夏": 0.6187, "新疆": 0.6021 };
   var RESIDUAL = 0.6096;
+  var REGIONS = ["全国", "华北", "东北", "华东", "华中", "西北", "南方", "西南"];
+  var PROVINCES = Object.keys(GRID).filter(function (k) { return REGIONS.indexOf(k) < 0; });
+  var MUNI = ["北京", "上海", "天津", "重庆"];
+  var PLAN = { "宁波": "浙江", "深圳": "广东", "青岛": "山东", "大连": "辽宁", "厦门": "福建" };
+  var RISK_TEXT = "近三年有违法违规记录：GB/T 36132—2025 第4.2条a)要求近三年未发生安全、质量、环保等违法违规行为，安徽等地的省级通知把“违法违规行为”直接列为不得申报。先向当地工信部门确认能否申报，再决定是否投入准备";
+  function normPlace(m) {
+    var s = String((m.province || "") + (m.city || "")).replace(/省|市|自治区|壮族|回族|维吾尔|特别行政区/g, "").trim();
+    var city = null, k;
+    for (k in PLAN) if (s.indexOf(k) >= 0) { city = k; break; }
+    if (PROVINCES.indexOf(s) >= 0) return [s, city];
+    var prov = null, i;
+    for (i = 0; i < PROVINCES.length; i++) if (s.indexOf(PROVINCES[i]) === 0) { prov = PROVINCES[i]; break; }
+    if (prov === null && city) prov = PLAN[city];
+    if (prov === null) for (i = 0; i < PROVINCES.length; i++) if (s.indexOf(PROVINCES[i]) >= 0) { prov = PROVINCES[i]; break; }
+    return [prov, city];
+  }
+  function effLevels(m) {
+    var prov = normPlace(m)[0], cur = m.current_level || "无", tgt = m.target_level || "省级", note = null;
+    if (MUNI.indexOf(prov) >= 0 && (cur === "市级" || tgt === "市级")) {
+      if (cur === "市级") cur = "省级";
+      if (tgt === "市级") tgt = "省级";
+      note = prov + "是直辖市：市级绿色工厂名单相当于省级名单，本次按省级口径研判。" + (prov === "北京" ? "北京2026年国家级推荐还接受当年同时申报市级绿色工厂的单位。" : "");
+    }
+    return [cur, tgt, note];
+  }
   var GATES = [
     ["g1", "近三年未正常经营生产（注销、连续停产12个月以上、列入经营异常名录未移出等）", "veto"],
     ["g2", "近三年发生较大及以上安全（含网络、数据、生产安全）、质量、环境污染事故", "veto"],
@@ -216,13 +241,15 @@ footer p{max-width:90ch}
     var total = gross - z(e.feedstock_tce) - z(e.exported_tce);
     var has = gross > 0;
     var claim = trade + gec;
-    if (trade && gec) W.push("同时填了市场化交易绿电和单独购买的绿证：绿电交易若已附带绿证，两者对应同一批电量，只能算一次，请核对凭证后只填一种。");
+    if (trade && gec) W.push("同时填了绿电交易（" + Math.round(trade) + " kWh）和单独购买的绿证（" + Math.round(gec) + " kWh）：绿电交易合同若已附带绿证，两者对应同一批电量，只能算一次，请核对凭证后只填一种。");
     if (claim > grid && grid > 0) { W.push("绿电交易与绿证合计超过外购电量，超出部分不计入。"); claim = grid; }
     var reKwh = pv + direct + claim, reTce = reKwh * KGCE.elec_kwh / 1000 + t["其他可再生能源"];
     var method = String(e.carbon_method || "location").toLowerCase();
-    var prov = String(meta.province || "").replace(/省|市|自治区|壮族|回族|维吾尔/g, "");
+    var prov = normPlace(meta)[0];
     var factor, ov = num(e.grid_factor);
-    if (ov !== null) factor = ov; else if (method === "market") factor = RESIDUAL; else factor = GRID[prov] || GRID["全国"];
+    if (ov !== null) factor = ov; else if (method === "market") factor = RESIDUAL;
+    else if (prov && GRID[prov]) factor = GRID[prov];
+    else { factor = GRID["全国"]; if (grid > 0) W.push("没有识别出省份，外购电排放按全国平均因子0.5306计算；请选择省份。"); }
     var emitKwh = method === "market" ? Math.max(grid - claim, 0) : grid;
     var co2 = emitKwh * factor / 1000;
     var map = [["ng_m3", "natural_gas_m3"], ["diesel_t", "diesel_t"], ["gasoline_t", "gasoline_t"], ["lpg_t", "lpg_t"], ["fuel_oil_t", "fuel_oil_t"], ["coal_t", "coal_t"], ["coke_t", "coke_t"]];
@@ -253,7 +280,7 @@ footer p{max-width:90ch}
     if (!funcs.length && num(ecms.count) !== null) { n = Math.floor(num(ecms.count)); funcs = ["(数量)"]; }
     var run = ecms.running;
     if (run === true || ["是", "true", "True", "1"].indexOf(String(run)) >= 0) A["4"] = [Math.min(n, 12), "项"];
-    else if ((run === null || run === undefined) && !funcs.length) A["4"] = [null, "项"];
+    else if (run === null || run === undefined || ["", "不确定", "不清楚"].indexOf(String(run).trim()) >= 0) A["4"] = [null, "项"];
     else A["4"] = [0, "项"];
     A["5"] = per(num(res.material_qty), "5", res.material_unit || "原材料单位");
     var wv = num(res.water_withdrawal_m3), vr = num(res.water_reuse_m3);
@@ -304,6 +331,8 @@ footer p{max-width:90ch}
           W.push("指标" + m.id + "【" + m.name + "】引领值和基准值方向填反，已自动对调。");
       }
       row.lead = lead; row.base = base;
+      if (row.unit === "%" && row.actual !== null && lead !== null && base !== null && Math.max(Math.abs(lead), Math.abs(base)) <= 1 && row.actual > 1)
+        W.push("指标" + m.id + "【" + m.name + "】的引领值、基准值都不超过1，而实际值是" + round(row.actual, 1) + "%：对标值本意是百分数（如12%）的，请填12，不要填0.12，否则这一项会虚高。");
       if (row.actual === null) row.status = "no_data";
       else if (lead === null || base === null) row.status = "no_benchmark";
       else {
@@ -320,46 +349,57 @@ footer p{max-width:90ch}
     GATES.forEach(function (gt) {
       var v = String(gin[gt[0]] || "不确定").trim(), lvl;
       if (["否", "无", "没有", "no", "No", "false"].indexOf(v) >= 0) lvl = 0;
-      else if (["是", "有", "yes", "Yes", "true"].indexOf(v) >= 0) lvl = gt[2] === "veto" ? 2 : 1;
+      else if (["是", "有", "yes", "Yes", "true"].indexOf(v) >= 0) lvl = gt[2] === "veto" ? 3 : 2;
       else { lvl = 1; v = "不确定"; }
-      items.push({ key: gt[0], label: gt[1], value: v, level: ["ok", "warn", "veto"][lvl] });
-      if (lvl === 2 && vetoFrom === null) vetoFrom = "gate";
+      items.push({ key: gt[0], label: gt[1], value: v, level: ["ok", "warn", "risk", "veto"][lvl] });
+      if (lvl === 3 && vetoFrom === null) vetoFrom = "gate";
       worst = Math.max(worst, lvl);
     });
     var bin = o(data.basic);
     BASIC.forEach(function (bt) {
       var v = String(bin[bt[0]] || "不确定").trim(), lvl, name;
-      if (bt[0] === "b1") { lvl = ["是", "有"].indexOf(v) >= 0 ? 0 : (["否", "无"].indexOf(v) >= 0 ? 2 : 1); name = ["ok", "warn", "veto"][lvl]; }
+      if (bt[0] === "b1") { lvl = ["是", "有"].indexOf(v) >= 0 ? 0 : (["否", "无"].indexOf(v) >= 0 ? 3 : 1); name = ["ok", "warn", "risk", "veto"][lvl]; }
       else if (["认证", "已认证", "获证"].indexOf(v) >= 0) { lvl = 0; name = "ok"; }
       else if (["建立", "已建立", "建立运行", "运行未认证"].indexOf(v) >= 0) { lvl = 0; name = "ok_weak"; }
-      else if (["无", "否", "未建立"].indexOf(v) >= 0) { lvl = 2; name = "veto"; }
+      else if (["无", "否", "未建立"].indexOf(v) >= 0) { lvl = 3; name = "veto"; }
       else { lvl = 1; name = "warn"; }
       basicItems.push({ key: bt[0], label: bt[1], value: v, level: name });
-      if (lvl === 2 && vetoFrom === null) vetoFrom = "basic";
+      if (lvl === 3 && vetoFrom === null) vetoFrom = "basic";
       worst = Math.max(worst, lvl);
     });
-    return { status: ["ok", "warn", "veto"][worst], items: items, basic: basicItems, veto_from: vetoFrom };
+    return { status: ["ok", "warn", "risk", "veto"][worst], items: items, basic: basicItems, veto_from: vetoFrom };
   }
 
   function verdict(tier, t, total, gs) {
     var c = total.certain, u = total.upper, d = { tier: tier, threshold: t };
-    if (gs.status === "veto") { d.verdict = "不具备申报条件"; d.gap = null; }
-    else if (c >= t - 1e-9) { d.verdict = "确定分已过线"; d.gap = 0; }
+    if (gs.status === "veto") { d.verdict = "不具备申报条件"; d.gap = null; return d; }
+    if (c >= t - 1e-9) { d.verdict = "确定分已过线"; d.gap = 0; }
     else if (total.pending_weight > 30) { d.verdict = "信息不足"; d.gap = t - c; }
     else if (u >= t - 1e-9) { d.verdict = "有希望，待补齐"; d.gap = t - c; }
     else { d.verdict = "目前达不到"; d.gap = t - c; }
+    if (gs.status === "risk") { d.score_verdict = d.verdict; d.verdict = "门槛存疑，先核实"; d.detail = RISK_TEXT; }
     return d;
   }
 
   function tiers(data, total, gs) {
-    var m = meta(data), th = o(data.thresholds), key = !!m.key_industry, cur = m.current_level || "无", out = [];
-    var need = []; if (cur === "无") need.push("市级"); if (cur === "无" || cur === "市级") need.push("省级");
-    need.forEach(function (tier) { var t = num(th[tier]); if (t === null) t = TH[tier][key ? "key" : "nonkey"]; out.push(verdict(tier, t, total, gs)); });
-    var pre = []; if (m.is_c_manufacturing === false) pre.push("非C类制造业"); if (cur !== "省级" && cur !== "国家级") pre.push("须先列入省级名单");
-    var avg = num(th.national_regional_avg), nat = { tier: "国家级", threshold: avg, prereq: pre };
+    var m = meta(data), th = o(data.thresholds), key = !!m.key_industry, out = [];
+    var el = effLevels(m), cur = el[0], pl = normPlace(m), muni = MUNI.indexOf(pl[0]) >= 0, city = pl[1];
+    var need = []; if (cur === "无" && !muni) need.push("市级"); if (cur === "无" || cur === "市级") need.push("省级");
+    need.forEach(function (tier) {
+      var t = num(th[tier]), dflt = t === null; if (dflt) t = TH[tier][key ? "key" : "nonkey"];
+      var v = verdict(tier, t, total, gs); v.default_threshold = dflt; out.push(v);
+    });
+    var pre = [], soft = [];
+    if (m.is_c_manufacturing === false) pre.push("非C类制造业");
+    if (cur !== "省级" && cur !== "国家级") {
+      if (city && cur === "市级") soft.push(city + "是计划单列市，前置名单以本市当年通知为准");
+      else pre.push("须先列入本地区省级名单");
+    }
+    var avg = num(th.national_regional_avg), nat = { tier: "国家级", threshold: avg, prereq: pre, soft_prereq: soft };
     if (cur === "国家级") nat.verdict = "已是国家级，看动态管理";
     else if (gs.status === "veto") nat.verdict = "不具备申报条件";
     else if (pre.length) nat.verdict = "当年不能报";
+    else if (gs.status === "risk") { nat.verdict = "门槛存疑，先核实"; nat.detail = RISK_TEXT; }
     else if (avg !== null) { var v = verdict("国家级", avg, total, gs); nat.verdict = v.verdict; nat.gap = v.gap; }
     else nat.verdict = "需对比本地区平均水平";
     out.push(nat);
@@ -403,7 +443,10 @@ footer p{max-width:90ch}
     var yr = gl.filter(function (a) { return a.timing === "year" && a.kind === "improve"; });
     st.concat(yr).forEach(function (a) { if (acc >= need - 1e-9) return; acc += a.gain; steps.push({ id: a.id, name: a.name, gain: a.gain, timing: a.timing, after: round(total.certain + acc, 1) }); });
     var pend = gl.filter(function (a) { return a.timing === "info"; });
-    return { tier: target.tier, threshold: target.threshold, need: round(need, 1), steps: steps, enough: acc >= need - 1e-9, pending: pend.length, pending_gain: pend.reduce(function (s, a) { return s + a.gain; }, 0) };
+    var enough = acc >= need - 1e-9, margin = enough ? acc - need : null;
+    return { tier: target.tier, threshold: target.threshold, need: round(need, 1), steps: steps, enough: enough, margin: margin === null ? null : round(margin, 1),
+      margin_note: (enough && margin < 3) ? "做完只比分数线高" + round(margin, 1).toFixed(1) + "分。定性项按三档估计、对标值也有不确定性，实际申报建议留出3分以上余量。" : "",
+      pending: pend.length, pending_gain: pend.reduce(function (s, a) { return s + a.gain; }, 0) };
   }
 
   function evaluate(data) {
@@ -418,10 +461,13 @@ footer p{max-width:90ch}
       return { cat: c, weight: w, score: s, upper: s + p };
     });
     var gs = gates(data), ts = tiers(data, total, gs), gl = gaps(data, rows, en);
-    return { energy: en, indicators: rows, categories: cats, total: { certain: round(certain, 1), upper: round(certain + pending, 1), pending_weight: round(pending, 1), raw: certain }, gates: gs, tiers: ts, gaps: gl, path: pathToPass(total, ts, gl), warnings: W };
+    var notes = [], el = effLevels(meta(data)), city = normPlace(meta(data))[1];
+    if (el[2]) notes.push(el[2]);
+    if (city) notes.push(city + "是计划单列市：国家级推荐由" + city + "工信部门直接报部，前置名单、截止时间以本市当年通知为准。");
+    return { energy: en, indicators: rows, categories: cats, total: { certain: round(certain, 1), upper: round(certain + pending, 1), pending_weight: round(pending, 1), raw: certain }, gates: gs, tiers: ts, gaps: gl, path: pathToPass(total, ts, gl), warnings: W, notes: notes };
   }
 
-  var api = { evaluate: evaluate, MODEL: MODEL, ECMS_FUNCS: ECMS_FUNCS, QUAL_TEXT: QUAL_TEXT, GRID: GRID, GATES: GATES, BASIC: BASIC, num: num };
+  var api = { evaluate: evaluate, MODEL: MODEL, ECMS_FUNCS: ECMS_FUNCS, QUAL_TEXT: QUAL_TEXT, GRID: GRID, GATES: GATES, BASIC: BASIC, num: num, effLevels: effLevels };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.GFEngine = api;
 })(this);
 </script>
@@ -453,7 +499,7 @@ footer p{max-width:90ch}
       ["meta.name", "企业名称", "text"], ["meta.province", "所在省份", "select", PROVS, "用于选取电力排放因子"],
       ["meta.industry", "所属行业", "text", null, "按 GB/T 4754"], ["meta.is_c_manufacturing", "是否属于C类制造业", "yesno"],
       ["meta.key_industry", "是否属于重点行业", "yesno", null, "以管理平台显示为准"],
-      ["meta.target_level", "目标层级", "select", ["市级", "省级", "国家级"]], ["meta.current_level", "当前已获层级", "select", ["无", "市级", "省级", "国家级"], "国家级须先是省级"],
+      ["meta.target_level", "目标层级", "select", ["市级", "省级", "国家级"]], ["meta.current_level", "当前已获层级", "select", ["无", "市级", "省级", "国家级"], "国家级须先是省级；京津沪渝的市级名单即省级"],
       ["meta.eval_year", "评价年", "num", null, "申报年份的上一自然年"], ["meta.smart_factory", "智能工厂等级", "select", ["无", "基础级", "先进级", "卓越级", "领航级"]],
       ["meta.honors", "已获荣誉", "list", null, "用顿号分隔，如 能效领跑者、专精特新"], ["meta.basis", "强度指标口径", "select", ["产值", "产量"], "要和对标值口径一致"],
       ["meta.product_unit", "产品计量单位", "text"]] },
@@ -590,7 +636,9 @@ footer p{max-width:90ch}
     });
   }
 
+  var RISK_NOTE = "近三年有一般行政处罚等违法违规记录。新国标第4.2条要求近三年未发生安全、质量、环保等违法违规行为，不少地方直接列为不得申报。先向当地工信部门确认，再投入准备。";
   function tone(v) {
+    if (/存疑/.test(v)) return "tone-bad";
     if (/已过线|已是国家级/.test(v)) return "tone-ok";
     if (/有希望|信息不足|需对比/.test(v)) return "tone-mid";
     return "tone-bad";
@@ -599,7 +647,7 @@ footer p{max-width:90ch}
 
   function render() {
     var d = collect(), r = E.evaluate(d), meta = d.meta || {};
-    var target = meta.target_level || "省级", tier = null;
+    var target = E.effLevels(meta)[1], tier = null;
     r.tiers.forEach(function (t) { if (!tier && t.tier === target) tier = t; });
     if (!tier) tier = r.tiers[0];
     var th = tier && tier.threshold !== null && tier.threshold !== undefined ? tier.threshold : null;
@@ -616,14 +664,20 @@ footer p{max-width:90ch}
       '</div><div class="scale"><span>0</span><span>50</span><span>100</span></div>' +
       '<div class="legend"><span><i class="lc"></i>确定分</span><span><i class="lp"></i>待定分</span></div></div>');
     h.push('<p class="verdict ' + tone(tier.verdict) + '" id="verdict">' + esc(vtext) + "</p>");
+    if (tier.score_verdict) h.push('<p class="sub">按分数看：' + esc(tier.score_verdict) + "</p>");
+    if (tier.default_threshold) h.push('<p class="sub">分数线 ' + fth(th) + " 分是缺省值（参照安徽2026年口径），以当地通知为准。</p>");
+    (r.notes || []).forEach(function (n) { h.push('<p class="sub">' + esc(n) + "</p>"); });
     var vetoes = r.gates.items.concat(r.gates.basic).filter(function (x) { return x.level === "veto"; });
+    var risks = r.gates.items.concat(r.gates.basic).filter(function (x) { return x.level === "risk"; });
     var warns = r.gates.items.concat(r.gates.basic).filter(function (x) { return x.level === "warn"; });
     if (vetoes.length) h.push('<div class="alert tone-bad"><b>' + (r.gates.veto_from === "basic" ? "基本要求不满足" : "存在否决项") + '，不能申报：</b><ul>' + vetoes.map(function (x) { return "<li>" + esc(x.label) + "</li>"; }).join("") + "</ul></div>");
+    else if (risks.length) h.push('<div class="alert tone-bad"><b>门槛存疑：</b>' + esc(RISK_NOTE) + "</div>");
     else if (warns.length) h.push('<div class="alert tone-mid"><b>门槛有 ' + warns.length + " 项待核实：</b><ul>" + warns.slice(0, 4).map(function (x) { return "<li>" + esc(x.label) + "</li>"; }).join("") + (warns.length > 4 ? "<li>……</li>" : "") + "</ul></div>");
     if (r.path && r.path.steps.length) {
       h.push('<div class="block"><h3>过' + esc(r.path.tier) + "线的最短路径（差 " + f1(r.path.need) + ' 分）</h3><ol class="path">' + r.path.steps.map(function (s) {
         return "<li>指标" + s.id + " " + esc(s.name) + "：+" + f2(s.gain) + " 分，到 " + f1(s.after) + ' 分<span class="dim">（' + (s.timing === "status" ? "申报前完成即可" : "须改善评价年数据") + "）</span></li>";
       }).join("") + "</ol>" + (!r.path.enough ? '<p class="dim">以上全部做到仍不够，需要更长周期的改造。</p>' : "") +
+        (r.path.margin_note ? '<p class="dim">' + esc(r.path.margin_note) + "</p>" : "") +
         (r.path.pending ? '<p class="dim">另有 ' + r.path.pending + " 项缺数据或缺对标值（最多 " + f1(r.path.pending_gain) + " 分），补齐后可能直接改变结论。</p>" : "") + "</div>");
     }
     h.push('<div class="block"><h3>五化得分</h3>' + r.categories.map(function (k) {
