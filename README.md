@@ -36,7 +36,7 @@
 ## 30 秒上手
 
 ```bash
-git clone https://github.com/<你的账号>/lvse-gongchang.git
+git clone https://github.com/Cannie1008/lvse-gongchang.git
 cd lvse-gongchang
 
 # 1. 用示例数据跑一遍，看看输出长什么样
